@@ -1,0 +1,21 @@
+{
+  "name": "terrasync-backend",
+  "version": "1.0.0",
+  "description": "TerraSync — Smart IoT Precision Farming Backend API",
+  "main": "server/index.js",
+  "scripts": {
+    "start":    "node server/index.js",
+    "dev":      "nodemon server/index.js",
+    "db:init":  "node server/db/init.js",
+    "setup":    "npm install && node server/db/init.js && npm start"
+  },
+  "dependencies": {
+    "cors":    "^2.8.5",
+    "dotenv":  "^16.4.7",
+    "express": "^4.21.2",
+    "mysql2":  "^3.11.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}

@@ -1,0 +1,107 @@
+-- ============================================================
+-- TerraSync — Database Schema
+-- MySQL  |  2026
+-- ============================================================
+
+CREATE DATABASE IF NOT EXISTS terrasync
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE terrasync;
+
+-- ──────────────────────────────────────────────
+-- Fields / Zones
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fields (
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(100)  NOT NULL,
+  crop        VARCHAR(100)  DEFAULT NULL,
+  crop_icon   VARCHAR(50)   DEFAULT 'fa-leaf',
+  status      ENUM('healthy','warning','critical') DEFAULT 'healthy',
+  created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ──────────────────────────────────────────────
+-- Sensor Readings  (one row per reading cycle)
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS sensor_readings (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  field_id    INT           NOT NULL,
+  moisture    DECIMAL(5,2)  DEFAULT NULL,   -- %
+  temperature DECIMAL(5,2)  DEFAULT NULL,   -- °C
+  humidity    DECIMAL(5,2)  DEFAULT NULL,   -- %
+  water_flow  DECIMAL(6,2)  DEFAULT NULL,   -- L/min
+  recorded_at TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_field_time (field_id, recorded_at),
+  FOREIGN KEY (field_id) REFERENCES fields(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- ──────────────────────────────────────────────
+-- Alerts
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS alerts (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  field_id    INT           DEFAULT NULL,
+  type        ENUM('info','success','warning','danger') DEFAULT 'info',
+  title       VARCHAR(200)  NOT NULL,
+  message     TEXT,
+  is_read     TINYINT(1)    DEFAULT 0,
+  created_at  TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+
+  INDEX idx_created (created_at),
+  FOREIGN KEY (field_id) REFERENCES fields(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ──────────────────────────────────────────────
+-- Pump / Irrigation Events
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS pump_events (
+  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  field_id      INT           DEFAULT NULL,
+  action        ENUM('on','off') NOT NULL,
+  mode          ENUM('auto','manual','schedule') DEFAULT 'manual',
+  water_used_l  DECIMAL(8,2) DEFAULT 0,
+  created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (field_id) REFERENCES fields(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- ──────────────────────────────────────────────
+-- Seed data — Fields
+-- ──────────────────────────────────────────────
+INSERT INTO fields (name, crop, crop_icon, status) VALUES
+  ("Yuri's Farm",    'Carrots',   'fa-carrot',    'healthy'),
+  ("Anthony's Farm", 'Corn',      'fa-wheat-awn', 'healthy'),
+  ('Field A',        'Balinghoy', 'fa-leaf',      'warning'),
+  ('Field B',        'Kamote',    'fa-spa',       'warning');
+
+-- ──────────────────────────────────────────────
+-- Seed data — Sample sensor readings (last 24h)
+-- ──────────────────────────────────────────────
+INSERT INTO sensor_readings (field_id, moisture, temperature, humidity, water_flow, recorded_at)
+SELECT
+  1,
+  50 + (RAND() * 10 - 5),
+  26 + (RAND() * 4 - 2),
+  60 + (RAND() * 10 - 5),
+  0,
+  DATE_SUB(NOW(), INTERVAL seq HOUR)
+FROM (
+  SELECT 0 AS seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3
+  UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7
+  UNION SELECT 8 UNION SELECT 9 UNION SELECT 10 UNION SELECT 11
+  UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15
+  UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19
+  UNION SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23
+) AS hours;
+
+-- ──────────────────────────────────────────────
+-- Seed data — Sample alerts
+-- ──────────────────────────────────────────────
+INSERT INTO alerts (field_id, type, title, message) VALUES
+  (3, 'warning', 'High Temperature Alert',  'Field A temperature reached 38.2°C — exceeds optimal range.'),
+  (4, 'warning', 'High Temperature Alert',  'Field B temperature reached 37.2°C — monitor closely.'),
+  (1, 'info',    'Irrigation Completed',     'Auto-irrigation cycle completed for Yuri''s Farm — 2.5L dispensed.'),
+  (NULL, 'success', 'ESP32 Reconnected',     'Device came online after brief disconnection. All sensors nominal.');
