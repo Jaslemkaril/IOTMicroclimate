@@ -3,7 +3,8 @@
 // ============================================================
 //  TerraSync — Hardware Configuration
 //
-//  BEFORE FLASHING:  Fill in STEP 1 and STEP 2 below.
+//  BEFORE FLASHING:  Copy this file to config.h and fill in
+//  STEP 1 and STEP 2 below.
 //  Everything else works out of the box for the default
 //  wiring diagram (see SETUP.md).
 // ============================================================
@@ -13,8 +14,13 @@
 //  STEP 1 — WiFi Credentials
 //  Enter your router's SSID and password.
 // ────────────────────────────────────────────────────────────
-#define WIFI_SSID       "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
+// ── Home WiFi (uncomment when at home) ──────────────────────
+#define WIFI_SSID     "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+
+// ── Laptop Hotspot (use for school presentation) ─────────────
+// #define WIFI_SSID       "TerraSync-Demo"
+// #define WIFI_PASSWORD   "terrasync123"
 
 
 // ────────────────────────────────────────────────────────────
@@ -26,7 +32,11 @@
 //  ⚠ Use YOUR_PC_IP, NOT "localhost" — the ESP32 cannot
 //    reach localhost; it needs the LAN IP shown at startup.
 // ────────────────────────────────────────────────────────────
+// ── Home LAN (uncomment when at home) ────────────────────────
 #define SERVER_BASE_URL "http://YOUR_PC_IP:3000"
+
+// ── Laptop Hotspot — Windows always assigns 192.168.137.1 ────
+// #define SERVER_BASE_URL "http://192.168.137.1:3000"
 
 
 // ────────────────────────────────────────────────────────────

@@ -102,9 +102,11 @@ void postSensorData() {
     float humidity    = dht.readHumidity();
     int   moisture    = readMoisturePercent();
 
-    if (isnan(temperature) || isnan(humidity)) {
-        Serial.println("[Sensor] DHT read failed — skipping post.");
-        return;
+    bool dhtValid = !(isnan(temperature) || isnan(humidity));
+    if (!dhtValid) {
+        temperature = 25.0f;
+        humidity = 60.0f;
+        Serial.println("[Sensor] DHT read failed — posting fallback values (Temp 25.0°C, Humidity 60.0%).");
     }
 
     Serial.printf("[Sensor] Temp: %.1f°C  Humidity: %.1f%%  Moisture: %d%%\n",

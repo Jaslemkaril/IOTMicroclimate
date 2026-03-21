@@ -31,7 +31,7 @@
         <nav class="sidebar-nav">
             <ul>
                 <li class="nav-item active">
-                    <a href="#"><i class="fas fa-grid-2"></i><span>Dashboard</span></a>
+                    <a href="#"><i class="fas fa-table-cells-large"></i><span>Dashboard</span></a>
                 </li>
                 <li class="nav-item">
                     <a href="#"><i class="fas fa-map-location-dot"></i><span>Fields</span></a>
@@ -43,7 +43,7 @@
                     <a href="#"><i class="fas fa-droplet"></i><span>Irrigation</span></a>
                 </li>
                 <li class="nav-item">
-                    <a href="#"><i class="fas fa-chart-mixed"></i><span>Analytics</span></a>
+                    <a href="#"><i class="fas fa-chart-column"></i><span>Analytics</span></a>
                 </li>
                 <li class="nav-item">
                     <a href="#"><i class="fas fa-clock-rotate-left"></i><span>History</span></a>
@@ -65,8 +65,8 @@
 
         <div class="sidebar-footer">
             <div class="device-status">
-                <div class="status-dot online"></div>
-                <span>ESP32 Connected</span>
+                <div class="status-dot"></div>
+                <span>ESP32 Checking…</span>
             </div>
         </div>
     </aside>
@@ -85,6 +85,11 @@
                 </div>
             </div>
             <div class="topbar-right">
+                <div class="esp32-badge" id="esp32Badge" title="ESP32 device connection status">
+                    <i class="fas fa-microchip"></i>
+                    <span class="esp32-dot" id="esp32Dot"></span>
+                    <span id="esp32Label">ESP32…</span>
+                </div>
                 <div class="connection-badge" id="connectionBadge">
                     <span class="conn-dot" id="connDot"></span>
                     <span id="connectionLabel">Connecting…</span>
@@ -102,7 +107,7 @@
                 </button>
                 <button class="icon-btn notification-btn" id="notifBtn">
                     <i class="fas fa-bell"></i>
-                    <span class="badge">3</span>
+                    <span class="badge" style="display:none">0</span>
                 </button>
                 <div class="user-profile" id="userProfile">
                     <div class="avatar">JK</div>
@@ -135,14 +140,14 @@
                     <div class="hero-circle">
                         <div class="hero-circle-inner">
                             <div class="hero-stat">
-                                <span class="hero-stat-value" id="heroHealth">85%</span>
+                                <span class="hero-stat-value" id="heroHealth">—</span>
                                 <span class="hero-stat-label">Overall Health</span>
                             </div>
                         </div>
                         <svg class="hero-ring" viewBox="0 0 200 200">
                             <circle cx="100" cy="100" r="90" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8"/>
                             <circle cx="100" cy="100" r="90" fill="none" stroke="#4ade80" stroke-width="8" 
-                                stroke-dasharray="565.48" stroke-dashoffset="84.82" stroke-linecap="round"
+                                stroke-dasharray="565.48" stroke-dashoffset="565.48" stroke-linecap="round"
                                 transform="rotate(-90 100 100)" id="heroRing"/>
                         </svg>
                     </div>
@@ -159,9 +164,9 @@
                     <div class="sensor-icon moisture">
                         <i class="fas fa-droplet"></i>
                     </div>
-                    <div class="sensor-trend up">
-                        <i class="fas fa-arrow-trend-up"></i>
-                        <span>+2.3%</span>
+                    <div class="sensor-trend neutral">
+                        <i class="fas fa-minus"></i>
+                        <span>—</span>
                     </div>
                 </div>
                 <div class="sensor-card-body">
@@ -183,7 +188,7 @@
                 </div>
                 <div class="sensor-card-footer">
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> Capacitive Sensor</span>
-                    <span class="last-update">Updated just now</span>
+                    <span class="last-update">No data yet</span>
                 </div>
             </div>
 
@@ -193,9 +198,9 @@
                     <div class="sensor-icon temperature">
                         <i class="fas fa-temperature-half"></i>
                     </div>
-                    <div class="sensor-trend down">
-                        <i class="fas fa-arrow-trend-down"></i>
-                        <span>-1.1°</span>
+                    <div class="sensor-trend neutral">
+                        <i class="fas fa-minus"></i>
+                        <span>—</span>
                     </div>
                 </div>
                 <div class="sensor-card-body">
@@ -217,7 +222,7 @@
                 </div>
                 <div class="sensor-card-footer">
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> DHT22 Sensor</span>
-                    <span class="last-update">Updated just now</span>
+                    <span class="last-update">No data yet</span>
                 </div>
             </div>
 
@@ -227,9 +232,9 @@
                     <div class="sensor-icon humidity">
                         <i class="fas fa-wind"></i>
                     </div>
-                    <div class="sensor-trend up">
-                        <i class="fas fa-arrow-trend-up"></i>
-                        <span>+3.5%</span>
+                    <div class="sensor-trend neutral">
+                        <i class="fas fa-minus"></i>
+                        <span>—</span>
                     </div>
                 </div>
                 <div class="sensor-card-body">
@@ -251,7 +256,7 @@
                 </div>
                 <div class="sensor-card-footer">
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> DHT22 Sensor</span>
-                    <span class="last-update">Updated just now</span>
+                    <span class="last-update">No data yet</span>
                 </div>
             </div>
 
@@ -263,7 +268,7 @@
                     </div>
                     <div class="sensor-trend neutral">
                         <i class="fas fa-minus"></i>
-                        <span>0.0</span>
+                        <span>—</span>
                     </div>
                 </div>
                 <div class="sensor-card-body">
@@ -285,7 +290,7 @@
                 </div>
                 <div class="sensor-card-footer">
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> Flow Meter</span>
-                    <span class="last-update">Updated just now</span>
+                    <span class="last-update">No data yet</span>
                 </div>
             </div>
         </section>
@@ -401,54 +406,9 @@
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td><strong>Yuri's Farm</strong></td>
-                                    <td><i class="fas fa-carrot crop-icon-carrot"></i> Carrots</td>
-                                    <td><span class="status-badge healthy">Healthy</span></td>
-                                    <td>
-                                        <div class="mini-bar"><div class="mini-fill fill-58 bg-green"></div></div>
-                                        <span>58%</span>
-                                    </td>
-                                    <td>27.5°C</td>
-                                    <td>62%</td>
-                                    <td><button class="btn btn-xs btn-outline">Details</button></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Anthony's Farm</strong></td>
-                                    <td><i class="fas fa-wheat-awn crop-icon-corn"></i> Corn</td>
-                                    <td><span class="status-badge healthy">Healthy</span></td>
-                                    <td>
-                                        <div class="mini-bar"><div class="mini-fill fill-47 bg-green"></div></div>
-                                        <span>47%</span>
-                                    </td>
-                                    <td>28.3°C</td>
-                                    <td>58%</td>
-                                    <td><button class="btn btn-xs btn-outline">Details</button></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Field A</strong></td>
-                                    <td><i class="fas fa-leaf crop-icon-balinghoy"></i> Balinghoy</td>
-                                    <td><span class="status-badge warning">High Temp</span></td>
-                                    <td>
-                                        <div class="mini-bar"><div class="mini-fill fill-73 bg-orange"></div></div>
-                                        <span>73%</span>
-                                    </td>
-                                    <td>38.2°C</td>
-                                    <td>45%</td>
-                                    <td><button class="btn btn-xs btn-outline">Details</button></td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Field B</strong></td>
-                                    <td><i class="fas fa-spa crop-icon-kamote"></i> Kamote</td>
-                                    <td><span class="status-badge warning">High Temp</span></td>
-                                    <td>
-                                        <div class="mini-bar"><div class="mini-fill fill-60 bg-green"></div></div>
-                                        <span>60%</span>
-                                    </td>
-                                    <td>37.2°C</td>
-                                    <td>50%</td>
-                                    <td><button class="btn btn-xs btn-outline">Details</button></td>
+                            <tbody id="fieldTableBody">
+                                <tr class="empty-row">
+                                    <td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-seedling" style="margin-right:8px;"></i>No fields yet — click <strong>+ Add Field</strong> to get started.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -465,7 +425,7 @@
                     <div class="health-chart-wrap">
                         <canvas id="healthChart"></canvas>
                         <div class="health-center">
-                            <span class="health-score" id="healthScore">85%</span>
+                            <span class="health-score" id="healthScore">—</span>
                             <span class="health-label">Overall Score</span>
                         </div>
                     </div>
@@ -485,42 +445,7 @@
                 </div>
                 <div class="card-body">
                     <div class="alerts-list" id="alertsList">
-                        <div class="alert-item warning">
-                            <div class="alert-icon"><i class="fas fa-temperature-high"></i></div>
-                            <div class="alert-content">
-                                <strong>High Temperature Alert</strong>
-                                <p>Field A temperature reached 38.2°C — exceeds optimal range.</p>
-                            </div>
-                            <span class="alert-time">5 min ago</span>
-                            <button class="alert-dismiss" title="Dismiss"><i class="fas fa-xmark"></i></button>
-                        </div>
-                        <div class="alert-item warning">
-                            <div class="alert-icon"><i class="fas fa-temperature-high"></i></div>
-                            <div class="alert-content">
-                                <strong>High Temperature Alert</strong>
-                                <p>Field B temperature reached 37.2°C — monitor closely.</p>
-                            </div>
-                            <span class="alert-time">12 min ago</span>
-                            <button class="alert-dismiss" title="Dismiss"><i class="fas fa-xmark"></i></button>
-                        </div>
-                        <div class="alert-item info">
-                            <div class="alert-icon"><i class="fas fa-droplet"></i></div>
-                            <div class="alert-content">
-                                <strong>Irrigation Completed</strong>
-                                <p>Auto-irrigation cycle completed for Yuri's Farm — 2.5L dispensed.</p>
-                            </div>
-                            <span class="alert-time">1 hr ago</span>
-                            <button class="alert-dismiss" title="Dismiss"><i class="fas fa-xmark"></i></button>
-                        </div>
-                        <div class="alert-item success">
-                            <div class="alert-icon"><i class="fas fa-microchip"></i></div>
-                            <div class="alert-content">
-                                <strong>ESP32 Reconnected</strong>
-                                <p>Device came online after brief disconnection. All sensors nominal.</p>
-                            </div>
-                            <span class="alert-time">2 hr ago</span>
-                            <button class="alert-dismiss" title="Dismiss"><i class="fas fa-xmark"></i></button>
-                        </div>
+                        <div class="empty-state-alerts" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:10px;"></i>No alerts yet.</div>
                     </div>
                 </div>
             </div>
@@ -534,35 +459,35 @@
                 </div>
                 <div class="card-body">
                     <div class="hardware-grid">
-                        <div class="hw-item">
+                        <div class="hw-item" id="hw-esp32">
                             <div class="hw-icon"><i class="fas fa-microchip"></i></div>
                             <span class="hw-name">ESP32 30P (CP2102)</span>
-                            <span class="hw-status online">Online</span>
+                            <span class="hw-status" id="hwStatusEsp32">Unknown</span>
                         </div>
-                        <div class="hw-item">
+                        <div class="hw-item" id="hw-moisture">
                             <div class="hw-icon"><i class="fas fa-droplet"></i></div>
                             <span class="hw-name">Capacitive Soil Moisture</span>
-                            <span class="hw-status online">Active</span>
+                            <span class="hw-status" id="hwStatusMoisture">No data</span>
                         </div>
-                        <div class="hw-item">
+                        <div class="hw-item" id="hw-dht22">
                             <div class="hw-icon"><i class="fas fa-temperature-half"></i></div>
                             <span class="hw-name">DHT22 Temp/Humidity</span>
-                            <span class="hw-status online">Active</span>
+                            <span class="hw-status" id="hwStatusDht">No data</span>
                         </div>
-                        <div class="hw-item">
+                        <div class="hw-item" id="hw-flow">
                             <div class="hw-icon"><i class="fas fa-faucet-drip"></i></div>
                             <span class="hw-name">YF-S201 Water Flow</span>
-                            <span class="hw-status online">Active</span>
+                            <span class="hw-status" id="hwStatusFlow">No data</span>
                         </div>
-                        <div class="hw-item">
+                        <div class="hw-item" id="hw-relay">
                             <div class="hw-icon"><i class="fas fa-toggle-on"></i></div>
                             <span class="hw-name">1CH 5V Relay Module</span>
-                            <span class="hw-status offline">Standby</span>
+                            <span class="hw-status" id="hwStatusRelay">Unknown</span>
                         </div>
-                        <div class="hw-item">
+                        <div class="hw-item" id="hw-pump">
                             <div class="hw-icon"><i class="fas fa-water"></i></div>
                             <span class="hw-name">5V Mini Water Pump</span>
-                            <span class="hw-status offline">Off</span>
+                            <span class="hw-status" id="hwStatusPump">Unknown</span>
                         </div>
                     </div>
                 </div>
@@ -583,27 +508,7 @@
             <button class="btn btn-xs btn-outline" id="markAllReadBtn">Mark all read</button>
         </div>
         <div class="notif-list" id="notifList">
-            <div class="notif-item unread">
-                <i class="fas fa-temperature-high text-warning"></i>
-                <div>
-                    <p><strong>Field A</strong> — Temperature exceeds 38°C</p>
-                    <small>5 min ago</small>
-                </div>
-            </div>
-            <div class="notif-item unread">
-                <i class="fas fa-temperature-high text-warning"></i>
-                <div>
-                    <p><strong>Field B</strong> — Temperature exceeds 37°C</p>
-                    <small>12 min ago</small>
-                </div>
-            </div>
-            <div class="notif-item unread">
-                <i class="fas fa-droplet text-info"></i>
-                <div>
-                    <p>Auto-irrigation completed for <strong>Yuri's Farm</strong></p>
-                    <small>1 hr ago</small>
-                </div>
-            </div>
+            <div style="text-align:center;padding:24px 16px;color:var(--text-muted);font-size:13px;">No notifications.</div>
         </div>
     </div>
 

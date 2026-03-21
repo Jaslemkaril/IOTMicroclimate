@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if backend is running
     async function checkApi() {
         try {
-            const res = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(2000) });
+            const res = await fetch(API_BASE + '/health', { signal: AbortSignal.timeout(4000) });
             const data = await res.json();
             apiAvailable = data.status === 'ok';
         } catch {
@@ -145,10 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const humidityEl = document.getElementById('humidityValue');
         const flowEl     = document.getElementById('flowValue');
 
-        if (moistureEl)  moistureEl.textContent  = parseFloat(moisture).toFixed(0);
-        if (tempEl)      tempEl.textContent      = parseFloat(temperature).toFixed(1);
-        if (humidityEl)  humidityEl.textContent  = parseFloat(humidity).toFixed(0);
-        if (flowEl)      flowEl.textContent      = parseFloat(waterFlow).toFixed(1);
+        if (moistureEl)  { moistureEl.textContent  = parseFloat(moisture).toFixed(0);    flashValue(moistureEl); }
+        if (tempEl)      { tempEl.textContent      = parseFloat(temperature).toFixed(1); flashValue(tempEl); }
+        if (humidityEl)  { humidityEl.textContent  = parseFloat(humidity).toFixed(0);    flashValue(humidityEl); }
+        if (flowEl)      { flowEl.textContent      = parseFloat(waterFlow).toFixed(1);   flashValue(flowEl); }
 
         animateGauge('moistureGauge', moisture);
         animateGauge('tempGauge', (temperature / 50) * 100);
@@ -158,6 +158,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.last-update').forEach(el => {
             el.textContent = 'Updated just now';
         });
+    }
+
+    // Flash value element briefly on live update
+    function flashValue(el) {
+        el.classList.remove('value-updated');
+        void el.offsetWidth; // force reflow
+        el.classList.add('value-updated');
+        el.addEventListener('animationend', () => el.classList.remove('value-updated'), { once: true });
     }
 
     function animateSensorValues() {
@@ -213,10 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let trendChart;
 
     // Default fallback data
-    let chartLabels   = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0') + ':00');
-    let moistureData  = generateFallbackData(52, 4, 24);
-    let tempData      = generateFallbackData(28, 3, 24);
-    let humidityData  = generateFallbackData(62, 5, 24);
+    let chartLabels   = [];
+    let moistureData  = [];
+    let tempData      = [];
+    let humidityData  = [];
 
     function generateFallbackData(base, variance, count) {
         const data = [];
@@ -392,12 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let healthChart;
 
     // Default health data (overwritten by API when available)
-    let fieldHealthData = [
-        { name: "Yuri's Farm (Carrots)", score: 85, color: '#22c55e' },
-        { name: "Anthony's Farm (Corn)", score: 90, color: '#16a34a' },
-        { name: "Field A (Balinghoy)", score: 65, color: '#f59e0b' },
-        { name: "Field B (Kamote)", score: 70, color: '#f97316' }
-    ];
+    let fieldHealthData = [];
 
     // Fetch fields from MySQL and compute health scores
     async function fetchFieldHealth() {
@@ -436,7 +439,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateFieldTable(fields) {
         const tbody = document.querySelector('#fieldTable tbody');
-        if (!tbody || fields.length === 0) return;
+        if (!tbody) return;
+        if (fields.length === 0) {
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-seedling" style="margin-right:8px;"></i>No fields yet \u2014 click <strong>+ Add Field</strong> to get started.</td></tr>';
+            return;
+        }
         tbody.innerHTML = fields.map(f => {
             const moisture = f.moisture !== null ? parseFloat(f.moisture).toFixed(0) : '—';
             const temp = f.temperature !== null ? parseFloat(f.temperature).toFixed(1) + '°C' : '—';
@@ -464,6 +471,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!healthCtx) return;
 
         if (healthChart) healthChart.destroy();
+
+        const scoreEl = document.getElementById('healthScore');
+        const heroHealth = document.getElementById('heroHealth');
+        const legendContainer = document.getElementById('healthLegend');
+
+        if (fieldHealthData.length === 0) {
+            if (scoreEl) scoreEl.textContent = '\u2014';
+            if (heroHealth) heroHealth.textContent = '\u2014';
+            if (legendContainer) legendContainer.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-size:13px;padding:16px 0;">No field data yet.</p>';
+            return;
+        }
 
         healthChart = new Chart(healthCtx, {
             type: 'doughnut',
@@ -497,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Build legend
-        const legendContainer = document.getElementById('healthLegend');
+        legendContainer.innerHTML = '';
         if (legendContainer) {
             fieldHealthData.forEach(field => {
                 const item = document.createElement('div');
@@ -515,11 +533,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const avgScore = Math.round(
             fieldHealthData.reduce((sum, f) => sum + f.score, 0) / fieldHealthData.length
         );
-        const scoreEl = document.getElementById('healthScore');
         if (scoreEl) scoreEl.textContent = avgScore + '%';
 
         // Also update hero
-        const heroHealth = document.getElementById('heroHealth');
         if (heroHealth) heroHealth.textContent = avgScore + '%';
 
         // Update hero ring
@@ -574,6 +590,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (pumpSwitch) pumpSwitch.checked = on;
+
+        // Update hardware panel relay/pump status immediately
+        updateHardwareStatus(true, 0);
 
         // Notify backend
         if (apiAvailable) {
@@ -652,44 +671,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (autoThresh) autoThresh.style.display = 'flex';
     })();
 
-    // ---------- LIVE UPDATES (API polling or simulated fallback) ----------
+    // Live updates — only poll when API is available
     setInterval(() => {
         if (apiAvailable) {
-            // Poll API for real data
             fetchLatestSensors();
-        } else {
-            // Fallback: slight random variation to simulate sensor noise
-            const moistureEl = document.getElementById('moistureValue');
-            const tempEl = document.getElementById('tempValue');
-            const humidityEl = document.getElementById('humidityValue');
-            const moistureGauge = document.getElementById('moistureGauge');
-            const tempGauge = document.getElementById('tempGauge');
-            const humidityGauge = document.getElementById('humidityGauge');
-
-            if (moistureEl) {
-                const m = parseFloat(moistureEl.textContent) + (Math.random() - 0.5) * 2;
-                const mv = Math.max(20, Math.min(90, m));
-                moistureEl.textContent = mv.toFixed(0);
-                if (moistureGauge) moistureGauge.style.width = mv + '%';
-            }
-
-            if (tempEl) {
-                const t = parseFloat(tempEl.textContent) + (Math.random() - 0.5) * 0.5;
-                const tv = Math.max(15, Math.min(45, t));
-                tempEl.textContent = tv.toFixed(1);
-                if (tempGauge) tempGauge.style.width = (tv / 50 * 100) + '%';
-            }
-
-            if (humidityEl) {
-                const h = parseFloat(humidityEl.textContent) + (Math.random() - 0.5) * 3;
-                const hv = Math.max(20, Math.min(95, h));
-                humidityEl.textContent = hv.toFixed(0);
-                if (humidityGauge) humidityGauge.style.width = hv + '%';
-            }
-
-            document.querySelectorAll('.last-update').forEach(el => {
-                el.textContent = 'Updated just now';
-            });
         }
     }, 5000);
 
@@ -698,16 +683,36 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(API_BASE + '/alerts?limit=10');
             const json = await res.json();
+            const notifList  = document.getElementById('notifList');
+            const alertsList = document.getElementById('alertsList');
             if (json.success && json.data.length > 0) {
-                const alertsList = document.getElementById('alertsList');
+                const iconMap = {
+                    warning: 'fa-temperature-high',
+                    danger:  'fa-triangle-exclamation',
+                    info:    'fa-droplet',
+                    success: 'fa-microchip'
+                };
+
+                // Populate dropdown
+                if (notifList) {
+                    notifList.innerHTML = json.data.map(a => {
+                        const icon = iconMap[a.type] || 'fa-bell';
+                        const timeAgo = getTimeAgo(new Date(a.created_at));
+                        return `<div class="notif-item ${a.type} ${a.is_read ? '' : 'unread'}" data-alert-id="${a.id}">
+                            <div class="alert-icon"><i class="fas ${icon}"></i></div>
+                            <div class="alert-content">
+                                <strong>${a.title}</strong>
+                                <p>${a.message}</p>
+                            </div>
+                            <span class="alert-time">${timeAgo}</span>
+                            <button class="notif-dismiss" title="Dismiss"><i class="fas fa-xmark"></i></button>
+                        </div>`;
+                    }).join('');
+                }
+
+                // Populate main-page Recent Alerts card
                 if (alertsList) {
                     alertsList.innerHTML = json.data.map(a => {
-                        const iconMap = {
-                            warning: 'fa-temperature-high',
-                            danger:  'fa-triangle-exclamation',
-                            info:    'fa-droplet',
-                            success: 'fa-microchip'
-                        };
                         const icon = iconMap[a.type] || 'fa-bell';
                         const timeAgo = getTimeAgo(new Date(a.created_at));
                         return `<div class="alert-item ${a.type}" data-alert-id="${a.id}">
@@ -729,6 +734,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     badge.textContent = unread;
                     badge.style.display = unread > 0 ? '' : 'none';
                 }
+            } else {
+                if (notifList)  notifList.innerHTML  = '<div style="text-align:center;padding:24px 16px;color:var(--text-muted);font-size:13px;">No notifications.</div>';
+                if (alertsList) alertsList.innerHTML = '<div class="empty-state-alerts" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:10px;"></i>No alerts yet.</div>';
+                const badge = document.querySelector('.notification-btn .badge');
+                if (badge) badge.style.display = 'none';
             }
         } catch (err) {
             console.warn('Alerts fetch failed:', err.message);
@@ -926,17 +936,45 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('All notifications marked as read', 'success');
     });
 
-    // Clicking individual notification items marks them read
-    document.getElementById('notifList')?.addEventListener('click', (e) => {
+    // Clicking individual notification items marks them read; dismiss button removes them
+    document.getElementById('notifList')?.addEventListener('click', async (e) => {
+        const dismissBtn = e.target.closest('.notif-dismiss');
+        if (dismissBtn) {
+            const item = dismissBtn.closest('.notif-item');
+            if (item) {
+                const alertId = item.dataset.alertId;
+                if (item.classList.contains('unread')) {
+                    const badge = document.querySelector('.notification-btn .badge');
+                    if (badge) {
+                        const count = Math.max(0, parseInt(badge.textContent) - 1);
+                        badge.textContent = count;
+                        if (count === 0) badge.style.display = 'none';
+                    }
+                }
+                item.remove();
+                if (apiAvailable && alertId) {
+                    try { await fetch(API_BASE + `/alerts/${alertId}/read`, { method: 'PUT' }); } catch {}
+                }
+                const notifList = document.getElementById('notifList');
+                if (notifList && !notifList.querySelector('.notif-item')) {
+                    notifList.innerHTML = '<div style="text-align:center;padding:24px 16px;color:var(--text-muted);font-size:13px;">No notifications.</div>';
+                }
+            }
+            return;
+        }
+
         const item = e.target.closest('.notif-item');
         if (item && item.classList.contains('unread')) {
             item.classList.remove('unread');
-            // Decrement badge
+            const alertId = item.dataset.alertId;
             const badge = document.querySelector('.notification-btn .badge');
             if (badge) {
                 const count = Math.max(0, parseInt(badge.textContent) - 1);
                 badge.textContent = count;
                 if (count === 0) badge.style.display = 'none';
+            }
+            if (apiAvailable && alertId) {
+                try { await fetch(API_BASE + `/alerts/${alertId}/read`, { method: 'PUT' }); } catch {}
             }
         }
     });
@@ -1199,12 +1237,31 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchChartData('24h');
             fetchFieldHealth();
             fetchAlerts();
+            setInterval(fetchAlerts, 30000);
+            fetchEsp32Status();
+            setInterval(fetchEsp32Status, 15000);
         } else {
-            // Use simulated data (animations already start below)
-            setTimeout(animateSensorValues, 600);
             rebuildHealthChart();
         }
     });
+
+    // Auto-retry every 30s so the dashboard recovers if server was starting up
+    setInterval(async () => {
+        if (!apiAvailable) {
+            const ok = await checkApi();
+            if (ok) {
+                setConnectionStatus('live');
+                fetchLatestSensors();
+                fetchChartData('24h');
+                fetchFieldHealth();
+                fetchAlerts();
+                fetchEsp32Status();
+                setInterval(fetchEsp32Status, 15000);
+            }
+        }
+    }, 30000);
+
+
 
     // ============================================================
     //  ENHANCEMENTS
@@ -1232,6 +1289,100 @@ document.addEventListener('DOMContentLoaded', () => {
         if (label) label.textContent = labels[state] || state;
     }
     setConnectionStatus('connecting');
+
+    // ---------- ESP32 STATUS ----------
+    async function fetchEsp32Status() {
+        try {
+            const res  = await fetch(API_BASE + '/sensors/esp32-status', { signal: AbortSignal.timeout(3000) });
+            const json = await res.json();
+            updateEsp32UI(json.connected, json.secondsAgo);
+            updateHardwareStatus(json.connected, json.secondsAgo);
+        } catch {
+            updateEsp32UI(false, null);
+            updateHardwareStatus(false, null);
+        }
+    }
+
+    function updateEsp32UI(connected, secondsAgo) {        // Topbar badge
+        const badge = document.getElementById('esp32Badge');
+        const dot   = document.getElementById('esp32Dot');
+        const label = document.getElementById('esp32Label');
+        if (badge) badge.className = 'esp32-badge ' + (connected ? 'esp32-online' : 'esp32-offline');
+        if (dot)   dot.className   = 'esp32-dot '   + (connected ? 'online' : 'offline');
+        if (label) {
+            if (connected) {
+                label.textContent = 'ESP32 Online';
+            } else if (secondsAgo !== null) {
+                const mins = Math.floor(secondsAgo / 60);
+                label.textContent = mins < 60 ? `ESP32 — ${mins}m ago` : 'ESP32 Offline';
+            } else {
+                label.textContent = 'ESP32 Offline';
+            }
+        }
+        // Sidebar footer dot
+        const sidebarDot   = document.querySelector('.device-status .status-dot');
+        const sidebarLabel = document.querySelector('.device-status span');
+        if (sidebarDot)   sidebarDot.className   = 'status-dot ' + (connected ? 'online' : 'offline');
+        if (sidebarLabel) {
+            if (connected) {
+                sidebarLabel.textContent = 'ESP32 Connected';
+            } else if (secondsAgo !== null) {
+                const mins = Math.floor(secondsAgo / 60);
+                sidebarLabel.textContent = mins < 60 ? `ESP32 — last seen ${mins}m ago` : 'ESP32 Disconnected';
+            } else {
+                sidebarLabel.textContent = 'ESP32 Disconnected';
+            }
+        }
+    }
+
+    // ---------- HARDWARE COMPONENT STATUS ----------
+    function updateHardwareStatus(esp32Connected, secondsAgo) {
+        function setHw(id, cssClass, label) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.className = 'hw-status ' + cssClass;
+            el.textContent = label;
+            // Colorize the hw-icon based on status
+            const hwIcon = el.closest('.hw-item')?.querySelector('.hw-icon');
+            if (hwIcon) {
+                if (cssClass === 'online') {
+                    hwIcon.style.background = 'rgba(34, 197, 94, 0.12)';
+                    hwIcon.style.color = '#16a34a';
+                } else if (cssClass === 'warning') {
+                    hwIcon.style.background = 'rgba(245, 158, 11, 0.12)';
+                    hwIcon.style.color = '#d97706';
+                } else {
+                    hwIcon.style.background = '';
+                    hwIcon.style.color = '';
+                }
+            }
+        }
+
+        // ESP32
+        if (esp32Connected) {
+            setHw('hwStatusEsp32', 'online', 'Online');
+        } else if (secondsAgo !== null) {
+            const mins = Math.floor(secondsAgo / 60);
+            setHw('hwStatusEsp32', 'offline', mins < 60 ? `Offline (${mins}m ago)` : 'Offline');
+        } else {
+            setHw('hwStatusEsp32', 'offline', 'Offline');
+        }
+
+        // Sensors — active only when ESP32 is connected and posting
+        if (esp32Connected) {
+            setHw('hwStatusMoisture', 'online', 'Active');
+            setHw('hwStatusDht',      'online', 'Active');
+            setHw('hwStatusFlow',     'warning', 'Standby');
+        } else {
+            setHw('hwStatusMoisture', 'offline', 'No signal');
+            setHw('hwStatusDht',      'offline', 'No signal');
+            setHw('hwStatusFlow',     'offline', 'No signal');
+        }
+
+        // Relay and pump follow pump state
+        setHw('hwStatusRelay', pumpOn ? 'online' : 'offline', pumpOn ? 'Relay ON' : 'Standby');
+        setHw('hwStatusPump',  pumpOn ? 'online' : 'offline', pumpOn ? 'Running'  : 'Off');
+    }
 
     // ---------- REFRESH BUTTON ----------
     async function refreshAll() {

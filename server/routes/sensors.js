@@ -22,20 +22,32 @@ router.post('/', async (req, res) => {
       [field_id, moisture, temperature, humidity, water_flow]
     );
 
-    // Check thresholds and create alerts automatically
+    // Check thresholds and create alerts (max one per type per field per hour)
     if (temperature > 35) {
-      await pool.execute(
-        `INSERT INTO alerts (field_id, type, title, message)
-         VALUES (?, 'warning', 'High Temperature Alert', ?)`,
-        [field_id, `Temperature reached ${temperature}°C — exceeds optimal range.`]
+      const [dup] = await pool.execute(
+        `SELECT id FROM alerts WHERE field_id = ? AND title = 'High Temperature Alert' AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
+        [field_id]
       );
+      if (!dup.length) {
+        await pool.execute(
+          `INSERT INTO alerts (field_id, type, title, message)
+           VALUES (?, 'warning', 'High Temperature Alert', ?)`,
+          [field_id, `Temperature reached ${temperature}°C — exceeds optimal range.`]
+        );
+      }
     }
     if (moisture < 30) {
-      await pool.execute(
-        `INSERT INTO alerts (field_id, type, title, message)
-         VALUES (?, 'warning', 'Low Soil Moisture', ?)`,
-        [field_id, `Soil moisture dropped to ${moisture}% — consider irrigation.`]
+      const [dup] = await pool.execute(
+        `SELECT id FROM alerts WHERE field_id = ? AND title = 'Low Soil Moisture' AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
+        [field_id]
       );
+      if (!dup.length) {
+        await pool.execute(
+          `INSERT INTO alerts (field_id, type, title, message)
+           VALUES (?, 'warning', 'Low Soil Moisture', ?)`,
+          [field_id, `Soil moisture dropped to ${moisture}% — consider irrigation.`]
+        );
+      }
     }
 
     res.status(201).json({ success: true, message: 'Reading saved' });
@@ -112,6 +124,32 @@ router.get('/history', async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('GET /api/sensors/history error:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ────────────────────────────────────────────
+// GET /api/sensors/esp32-status
+// Returns whether the ESP32 has posted a reading within the last 60 seconds
+// ────────────────────────────────────────────
+router.get('/esp32-status', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        recorded_at,
+        TIMESTAMPDIFF(SECOND, recorded_at, NOW()) AS seconds_ago
+      FROM sensor_readings
+      ORDER BY recorded_at DESC
+      LIMIT 1
+    `);
+    if (rows.length === 0) {
+      return res.json({ success: true, connected: false, lastSeen: null, secondsAgo: null });
+    }
+    const secondsAgo = rows[0].seconds_ago;
+    const connected  = secondsAgo <= 90;
+    res.json({ success: true, connected, lastSeen: rows[0].recorded_at, secondsAgo });
+  } catch (err) {
+    console.error('GET /api/sensors/esp32-status error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
