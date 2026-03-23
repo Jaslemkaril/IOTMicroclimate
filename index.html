@@ -4,11 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TerraSync — Smart IoT Precision Farming</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <!-- Google Fonts: loads if online, skipped gracefully when offline -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <script src="vendor/js/chart.umd.min.js"></script>
+    <script src="vendor/js/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
     <!-- ========== SIDEBAR ========== -->
@@ -105,9 +107,9 @@
                 <button class="theme-toggle" id="themeToggle" title="Toggle theme">
                     <i class="fas fa-moon"></i>
                 </button>
-                <button class="icon-btn notification-btn" id="notifBtn">
+                <button class="icon-btn notification-btn" id="notifBtn" aria-label="Notifications">
                     <i class="fas fa-bell"></i>
-                    <span class="badge" style="display:none">0</span>
+                    <span class="badge badge-hidden">0</span>
                 </button>
                 <div class="user-profile" id="userProfile">
                     <div class="avatar">JK</div>
@@ -190,6 +192,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> Capacitive Sensor</span>
                     <span class="last-update">No data yet</span>
                 </div>
+                <span class="sensor-live-badge" id="liveBadgeMoisture" style="display:none"><span class="live-pulse"></span>LIVE</span>
             </div>
 
             <!-- Temperature -->
@@ -224,6 +227,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> DHT22 Sensor</span>
                     <span class="last-update">No data yet</span>
                 </div>
+                <span class="sensor-live-badge" id="liveBadgeTemp" style="display:none"><span class="live-pulse"></span>LIVE</span>
             </div>
 
             <!-- Humidity -->
@@ -258,6 +262,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> DHT22 Sensor</span>
                     <span class="last-update">No data yet</span>
                 </div>
+                <span class="sensor-live-badge" id="liveBadgeHumidity" style="display:none"><span class="live-pulse"></span>LIVE</span>
             </div>
 
             <!-- Water Flow -->
@@ -292,6 +297,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> Flow Meter</span>
                     <span class="last-update">No data yet</span>
                 </div>
+                <span class="sensor-live-badge" id="liveBadgeFlow" style="display:none"><span class="live-pulse"></span>LIVE</span>
             </div>
         </section>
 
@@ -300,13 +306,22 @@
             <!-- Sensor Trend Chart -->
             <div class="card chart-card wide">
                 <div class="card-header">
-                    <h3><i class="fas fa-chart-area"></i> Sensor Trends (24h)</h3>
+                    <h3><i class="fas fa-chart-area"></i> Sensor Trends <span id="chartRangeLabel">Live</span></h3>
                     <div class="chart-controls">
-                        <button class="chip active" data-range="24h">24h</button>
+                        <button class="chip active" data-range="live">Live</button>
+                        <button class="chip" data-range="1h">1h</button>
+                        <button class="chip" data-range="24h">24h</button>
                         <button class="chip" data-range="7d">7d</button>
-                        <button class="chip" data-range="30d">30d</button>
                         <div class="chart-sep"></div>
-                        <button class="chip" id="exportCsvBtn" title="Export chart data as CSV"><i class="fas fa-download"></i> CSV</button>
+                        <!-- CSV dropdown -->
+                        <div class="csv-wrap" id="csvWrap">
+                            <button class="chip" id="exportCsvBtn" title="Export CSV"><i class="fas fa-download"></i> CSV <i class="fas fa-caret-down" style="margin-left:3px;font-size:9px"></i></button>
+                            <div class="csv-menu" id="csvMenu">
+                                <button class="csv-opt" data-csv-range="1h">This Hour</button>
+                                <button class="csv-opt" data-csv-range="24h">Today (24h)</button>
+                                <button class="csv-opt" data-csv-range="7d">This Week (7d)</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card-body">
@@ -341,25 +356,6 @@
                             <span class="toggle-slider"></span>
                             <span class="toggle-label">Manual Override</span>
                         </label>
-
-                        <div class="pump-mode">
-                            <button class="mode-btn active" data-mode="auto">
-                                <i class="fas fa-robot"></i> Auto
-                            </button>
-                            <button class="mode-btn" data-mode="manual">
-                                <i class="fas fa-hand"></i> Manual
-                            </button>
-                            <button class="mode-btn" data-mode="schedule">
-                                <i class="fas fa-calendar-check"></i> Schedule
-                            </button>
-                        </div>
-                        <div class="auto-threshold" id="autoThreshold">
-                            <label class="auto-thresh-label">
-                                <i class="fas fa-droplet"></i>
-                                ON when moisture &lt; <input type="number" id="moistureThreshold" value="30" min="5" max="60" class="thresh-input"> %
-                                &nbsp;&nbsp;OFF when &gt; <input type="number" id="moistureThresholdOff" value="60" min="30" max="95" class="thresh-input"> %
-                            </label>
-                        </div>
                     </div>
 
                     <div class="pump-stats">
@@ -379,6 +375,65 @@
                             <span class="pump-stat-value" id="pumpRuntime">00:00</span>
                             <span class="pump-stat-label">Runtime</span>
                         </div>
+                    </div>
+
+                    <!-- Tank Level -->
+                    <div class="tank-section">
+
+                        <!-- Header: title · badge · refill button -->
+                        <div class="tank-header">
+                            <span class="tank-title"><i class="fas fa-water"></i> Water Tank</span>
+                            <div class="tank-header-right">
+                                <span class="tank-badge badge-full" id="tankBadge">FULL</span>
+                                <button class="btn-refill" id="tankRefillBtn">
+                                    <i class="fas fa-fill-drip"></i> Refill
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Ring gauge + info rows -->
+                        <div class="tank-display">
+                            <div class="tank-ring-wrap">
+                                <svg class="tank-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
+                                    <circle class="tank-ring-bg"   cx="60" cy="60" r="50"/>
+                                    <circle class="tank-ring-fill" cx="60" cy="60" r="50" id="tankRingFill"/>
+                                </svg>
+                                <div class="tank-ring-center">
+                                    <div class="tank-pct-text" id="tankPct">100%</div>
+                                    <div class="tank-l-text"   id="tankText">7.0 / 7 L</div>
+                                </div>
+                            </div>
+                            <div class="tank-info">
+                                <div class="ti-row">
+                                    <span class="ti-label">Remaining</span>
+                                    <span class="ti-val" id="tankRemaining">7.0 L</span>
+                                </div>
+                                <div class="ti-row">
+                                    <span class="ti-label">Pipe Volume</span>
+                                    <span class="ti-val">0.63 L</span>
+                                </div>
+                                <div class="ti-row">
+                                    <span class="ti-label">Usable</span>
+                                    <span class="ti-val" id="tankUsablePct">100%</span>
+                                </div>
+                                <div class="ti-row">
+                                    <span class="ti-label">Status</span>
+                                    <span class="ti-val" id="tankHint">Full</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Progress bar -->
+                        <div class="tank-bar-wrap">
+                            <div class="tank-bar-fill" id="tankFill" style="width:100%"></div>
+                        </div>
+
+                        <!-- Low-water banner (shown when status = low / critical / empty) -->
+                        <div class="tank-low-banner" id="tankLowBanner">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            Water tank is low — refill soon to continue irrigation.
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -408,7 +463,7 @@
                             </thead>
                             <tbody id="fieldTableBody">
                                 <tr class="empty-row">
-                                    <td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-seedling" style="margin-right:8px;"></i>No fields yet — click <strong>+ Add Field</strong> to get started.</td>
+                                    <td colspan="7" class="empty-td"><i class="fas fa-seedling empty-icon"></i>No fields yet — click <strong>+ Add Field</strong> to get started.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -445,7 +500,7 @@
                 </div>
                 <div class="card-body">
                     <div class="alerts-list" id="alertsList">
-                        <div class="empty-state-alerts" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-bell-slash" style="font-size:24px;display:block;margin-bottom:10px;"></i>No alerts yet.</div>
+                        <div class="empty-state-alerts"><i class="fas fa-bell-slash empty-state-icon"></i>No alerts yet.</div>
                     </div>
                 </div>
             </div>
@@ -508,7 +563,7 @@
             <button class="btn btn-xs btn-outline" id="markAllReadBtn">Mark all read</button>
         </div>
         <div class="notif-list" id="notifList">
-            <div style="text-align:center;padding:24px 16px;color:var(--text-muted);font-size:13px;">No notifications.</div>
+            <div class="notif-empty">No notifications.</div>
         </div>
     </div>
 

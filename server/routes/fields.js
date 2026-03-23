@@ -9,6 +9,7 @@ const pool    = require('../db/connection');
 
 // ────────────────────────────────────────────
 // GET /api/fields — All fields with latest sensor snapshot
+// Status is computed from live sensor data, not stored statically.
 // ────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
@@ -22,7 +23,25 @@ router.get('/', async (req, res) => {
       )
       ORDER BY f.id
     `);
-    res.json({ success: true, data: rows });
+
+    // Compute status dynamically from latest sensor values
+    const data = rows.map(f => {
+      const temp  = f.temperature !== null ? parseFloat(f.temperature) : null;
+      const moist = f.moisture    !== null ? parseFloat(f.moisture)    : null;
+      let status = 'healthy';
+      if (temp !== null || moist !== null) {
+        if ((temp !== null && temp > 35) || (moist !== null && moist < 20))
+          status = 'critical';
+        else if ((temp !== null && temp > 30) || (moist !== null && (moist < 30 || moist > 75)))
+          status = 'warning';
+      } else {
+        // No sensor data yet — keep as healthy (no fake warning)
+        status = 'healthy';
+      }
+      return { ...f, status };
+    });
+
+    res.json({ success: true, data });
   } catch (err) {
     console.error('GET /api/fields error:', err.message);
     res.status(500).json({ success: false, error: err.message });

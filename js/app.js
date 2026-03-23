@@ -90,7 +90,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------- API CONFIGURATION ----------
-    const API_BASE = window.location.origin + '/api';
+    // Always target the Express server on port 3000, regardless of what port
+    // served this HTML (e.g. VS Code Live Server on :5500 still works).
+    const API_BASE = `${window.location.protocol}//${window.location.hostname}:3000/api`;
     let apiAvailable = false;
 
     // Check if backend is running
@@ -131,7 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (prevSensorReading) updateTrendArrows(reading, prevSensorReading);
                 prevSensorReading = reading;
                 updateSensorCardStatus(d.moisture, d.temperature, d.humidity);
-                checkAutoIrrigation(reading.moisture);
             }
         } catch (err) {
             console.warn('Sensor fetch failed:', err.message);
@@ -157,6 +158,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.last-update').forEach(el => {
             el.textContent = 'Updated just now';
+        });
+
+        ['liveBadgeMoisture','liveBadgeTemp','liveBadgeHumidity','liveBadgeFlow'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex';
         });
     }
 
@@ -238,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Fetch chart data from MySQL
-    async function fetchChartData(range = '24h') {
+    async function fetchChartData(range = 'live') {
         try {
             const res = await fetch(`${API_BASE}/sensors/history?field_id=1&range=${range}`);
             const json = await res.json();
@@ -255,6 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     trendChart.data.datasets[2].data = humidityData;
                     trendChart.update();
                 }
+                const labelEl = document.getElementById('chartRangeLabel');
+                const rangeLabelMapLocal = { live: 'Live', '1h': '1 Hour', '24h': '24h', '7d': '7 Days' };
+                if (labelEl) labelEl.textContent = rangeLabelMapLocal[range] || range;
             }
         } catch (err) {
             console.warn('Chart data fetch failed:', err.message);
@@ -384,16 +393,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Chart range chips — fetch from API when available
+    let liveChartInterval = null;
+    const rangeLabelMap = { live: 'Live', '1h': '1 Hour', '24h': '24h', '7d': '7 Days' };
+
+    function startLiveChartPolling() {
+        if (liveChartInterval) return;
+        liveChartInterval = setInterval(() => {
+            if (apiAvailable) fetchChartData('live');
+        }, 3000);
+    }
+    function stopLiveChartPolling() {
+        clearInterval(liveChartInterval);
+        liveChartInterval = null;
+    }
+
     document.querySelectorAll('.chip[data-range]').forEach(chip => {
         chip.addEventListener('click', () => {
             document.querySelectorAll('.chip[data-range]').forEach(c => c.classList.remove('active'));
             chip.classList.add('active');
             const range = chip.dataset.range;
-            if (apiAvailable) {
-                fetchChartData(range);
+            const labelEl = document.getElementById('chartRangeLabel');
+            if (labelEl) labelEl.textContent = rangeLabelMap[range] || range;
+            if (range === 'live') {
+                startLiveChartPolling();
+            } else {
+                stopLiveChartPolling();
             }
+            fetchChartData(range);
         });
     });
+    // Start live polling by default
+    startLiveChartPolling();
 
     // ---------- HEALTH DOUGHNUT CHART ----------
     const healthCtx = document.getElementById('healthChart')?.getContext('2d');
@@ -409,20 +439,37 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             if (json.success && json.data.length > 0) {
                 const healthColors = ['#22c55e', '#16a34a', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
-                fieldHealthData = json.data.map((f, i) => {
-                    // Compute a simple health score based on sensor values
-                    let score = 80;
-                    if (f.moisture !== null) {
-                        if (f.moisture >= 40 && f.moisture <= 60) score += 5;
-                        else if (f.moisture < 30 || f.moisture > 75) score -= 15;
+                // Only include fields that have real sensor data
+                const liveFields = json.data.filter(f => f.moisture !== null || f.temperature !== null);
+                fieldHealthData = liveFields.map((f, i) => {
+                    const t = f.temperature !== null ? parseFloat(f.temperature) : null;
+                    const m = f.moisture    !== null ? parseFloat(f.moisture)    : null;
+                    const h = f.humidity    !== null ? parseFloat(f.humidity)    : null;
+                    // Score built entirely from live sensor readings
+                    let score = 50; // neutral baseline
+                    // Moisture: optimal 40-60%
+                    if (m !== null) {
+                        if (m >= 40 && m <= 60)       score += 20;
+                        else if (m >= 30 && m < 40)   score += 10;
+                        else if (m >= 60 && m <= 75)  score += 10;
+                        else if (m < 20 || m > 85)    score -= 20;
+                        else if (m < 30 || m > 75)    score -= 10;
                     }
-                    if (f.temperature !== null) {
-                        if (f.temperature >= 20 && f.temperature <= 30) score += 5;
-                        else if (f.temperature > 35) score -= 20;
+                    // Temperature: optimal 20-30°C
+                    if (t !== null) {
+                        if (t >= 20 && t <= 30)  score += 20;
+                        else if (t > 35)         score -= 25;
+                        else if (t > 30)         score -= 10;
+                        else if (t < 15)         score -= 15;
+                    }
+                    // Humidity: optimal 50-70%
+                    if (h !== null) {
+                        if (h >= 50 && h <= 70)  score += 10;
+                        else if (h < 30 || h > 90) score -= 10;
                     }
                     score = Math.max(0, Math.min(100, score));
                     return {
-                        name: `${f.name} (${f.crop || 'N/A'})`,
+                        name: `${f.name}`,
                         score,
                         color: healthColors[i % healthColors.length]
                     };
@@ -445,13 +492,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         tbody.innerHTML = fields.map(f => {
-            const moisture = f.moisture !== null ? parseFloat(f.moisture).toFixed(0) : '—';
-            const temp = f.temperature !== null ? parseFloat(f.temperature).toFixed(1) + '°C' : '—';
-            const hum = f.humidity !== null ? parseFloat(f.humidity).toFixed(0) + '%' : '—';
-            const statusClass = f.status === 'healthy' ? 'healthy' : f.status === 'warning' ? 'warning' : 'critical';
-            const statusLabel = f.status === 'healthy' ? 'Healthy' : f.status === 'warning' ? 'High Temp' : 'Critical';
-            const mVal = f.moisture !== null ? parseFloat(f.moisture) : 0;
-            const barColor = mVal > 65 ? 'bg-orange' : 'bg-green';
+            const moisture = f.moisture !== null ? parseFloat(f.moisture).toFixed(0) : '\u2014';
+            const temp     = f.temperature !== null ? parseFloat(f.temperature).toFixed(1) + '\u00b0C' : '\u2014';
+            const hum      = f.humidity    !== null ? parseFloat(f.humidity).toFixed(0) + '%' : '\u2014';
+
+            // Derive status from actual sensor values
+            const tVal = f.temperature !== null ? parseFloat(f.temperature) : null;
+            const mVal = f.moisture    !== null ? parseFloat(f.moisture)    : null;
+            const hasData = tVal !== null || mVal !== null;
+
+            let statusClass, statusLabel;
+            if (!hasData) {
+                statusClass = 'no-data'; statusLabel = 'No Data';
+            } else if ((tVal !== null && tVal > 35) || (mVal !== null && mVal < 20)) {
+                statusClass = 'critical'; statusLabel = tVal > 35 ? 'High Temp' : 'Dry';
+            } else if ((tVal !== null && tVal > 30) || (mVal !== null && (mVal < 30 || mVal > 75))) {
+                statusClass = 'warning';
+                statusLabel = tVal !== null && tVal > 30 ? 'Warm' : mVal > 75 ? 'Overwatered' : 'Low Moisture';
+            } else {
+                statusClass = 'healthy'; statusLabel = 'Healthy';
+            }
+
+            const mDisplay = mVal !== null ? mVal : 0;
+            const barColor = mDisplay > 65 ? 'bg-orange' : 'bg-green';
             return `<tr>
                 <td><strong>${f.name}</strong></td>
                 <td><i class="fas ${f.crop_icon || 'fa-leaf'}"></i> ${f.crop || 'N/A'}</td>
@@ -559,11 +622,108 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalWaterEl = document.getElementById('totalWater');
     const lastIrrigationEl = document.getElementById('lastIrrigation');
 
+    const TANK_CAPACITY_L = 7;
+
     let pumpOn = false;
     let waterTotal = 0;
     let pumpInterval = null;
     let pumpRuntimeSeconds = 0;
     let pumpRuntimeInterval = null;
+
+    const TANK_RING_CIRCUMFERENCE = 2 * Math.PI * 50; // 314.16
+
+    function updateTankUI(data) {
+        const pct    = data.percent;
+        const level  = data.level_liters;
+        const status = data.status;
+
+        // SVG ring
+        const ringFill = document.getElementById('tankRingFill');
+        if (ringFill) {
+            const offset = TANK_RING_CIRCUMFERENCE - (pct / 100) * TANK_RING_CIRCUMFERENCE;
+            ringFill.style.strokeDashoffset = offset;
+            ringFill.style.stroke =
+                (status === 'empty' || status === 'critical') ? '#ef4444' :
+                status === 'low'   ? '#f97316' :
+                status === 'half'  ? '#facc15' :
+                status === 'good'  ? '#22c55e' : '#38bdf8';
+        }
+
+        // Percentage text
+        const pctEl = document.getElementById('tankPct');
+        if (pctEl) pctEl.textContent = pct.toFixed(0) + '%';
+
+        // L / capacity text
+        const textEl = document.getElementById('tankText');
+        if (textEl) textEl.textContent = level.toFixed(1) + ' / ' + data.capacity_liters + ' L';
+
+        // Remaining
+        const remEl = document.getElementById('tankRemaining');
+        if (remEl) remEl.textContent = level.toFixed(2) + ' L';
+
+        // Usable %
+        const usableEl = document.getElementById('tankUsablePct');
+        if (usableEl) usableEl.textContent = (data.usable_percent ?? pct).toFixed(0) + '%';
+
+        // Progress bar
+        const fill = document.getElementById('tankFill');
+        if (fill) {
+            fill.style.width = pct.toFixed(1) + '%';
+            fill.classList.toggle('tank-low', pct <= 25);
+            fill.classList.toggle('tank-mid', pct > 25 && pct <= 50);
+        }
+
+        // Status hint text
+        const hintMap = { empty: 'Empty!', critical: 'Critical!', low: 'Low', half: 'Half', good: 'Good', full: 'Full' };
+        const hintEl = document.getElementById('tankHint');
+        if (hintEl) hintEl.textContent = hintMap[status] || 'Full';
+
+        // Badge
+        const badgeEl = document.getElementById('tankBadge');
+        if (badgeEl) {
+            badgeEl.textContent = status.toUpperCase();
+            badgeEl.className   = 'tank-badge badge-' + status;
+        }
+
+        // Low-water banner
+        const banner = document.getElementById('tankLowBanner');
+        if (banner) banner.classList.toggle('visible', ['low', 'critical', 'empty'].includes(status));
+    }
+
+    async function fetchTankStatus() {
+        try {
+            const res  = await fetch(API_BASE + '/tank');
+            const json = await res.json();
+            if (json.success) updateTankUI(json.data);
+        } catch { /* silent */ }
+    }
+
+    async function refillTank() {
+        const btn = document.getElementById('tankRefillBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refilling...'; }
+        try {
+            const res  = await fetch(API_BASE + '/tank/reset', { method: 'POST' });
+            const json = await res.json();
+            if (json.success) {
+                fetchTankStatus();
+                fetchAlerts();
+            }
+        } catch { /* silent */ }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-fill-drip"></i> Refill'; }
+    }
+
+    document.getElementById('tankRefillBtn')?.addEventListener('click', refillTank);
+
+    async function fetchPumpToday() {
+        try {
+            const res  = await fetch(API_BASE + '/pump/today');
+            const json = await res.json();
+            if (json.success) {
+                waterTotal = parseFloat(json.data.total_liters) || 0;
+                if (totalWaterEl) totalWaterEl.textContent = waterTotal.toFixed(1) + ' L';
+            }
+        } catch { /* silent */ }
+    }
 
     function setPumpState(on) {
         pumpOn = on;
@@ -596,7 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Notify backend
         if (apiAvailable) {
-            const activeMode = document.querySelector('.mode-btn.active')?.dataset.mode || 'manual';
+            const activeMode = 'manual';
             fetch(API_BASE + '/pump/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -604,17 +764,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(err => console.warn('Pump API call failed:', err.message));
         }
 
-        // Simulate water usage when pump is on
+        // Track water usage counter when pump is on
         if (on) {
             pumpInterval = setInterval(() => {
                 waterTotal += 0.1;
                 if (totalWaterEl) totalWaterEl.textContent = waterTotal.toFixed(1) + ' L';
-
-                // Animate flow sensor value
-                const flowVal = document.getElementById('flowValue');
-                const flowGauge = document.getElementById('flowGauge');
-                if (flowVal) flowVal.textContent = (1.5 + Math.random() * 0.5).toFixed(1);
-                if (flowGauge) flowGauge.style.width = ((1.8 / 30) * 100) + '%';
             }, 1000);
 
             // Pump runtime counter
@@ -652,24 +806,6 @@ document.addEventListener('DOMContentLoaded', () => {
     pumpToggleBtn?.addEventListener('click', () => {
         setPumpState(!pumpOn);
     });
-
-    // Pump mode buttons
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            // Show auto-threshold panel only when Auto mode is selected
-            const autoThresh = document.getElementById('autoThreshold');
-            if (autoThresh) {
-                autoThresh.style.display = btn.dataset.mode === 'auto' ? 'flex' : 'none';
-            }
-        });
-    });
-    // Auto mode is active by default, so show threshold panel on load
-    (() => {
-        const autoThresh = document.getElementById('autoThreshold');
-        if (autoThresh) autoThresh.style.display = 'flex';
-    })();
 
     // Live updates — only poll when API is available
     setInterval(() => {
@@ -1234,12 +1370,15 @@ document.addEventListener('DOMContentLoaded', () => {
         setConnectionStatus(available ? 'live' : 'demo');
         if (available) {
             fetchLatestSensors();
-            fetchChartData('24h');
+            fetchChartData('live');
             fetchFieldHealth();
             fetchAlerts();
             setInterval(fetchAlerts, 30000);
             fetchEsp32Status();
             setInterval(fetchEsp32Status, 15000);
+            fetchPumpToday();
+            fetchTankStatus();
+            setInterval(fetchTankStatus, 15000);
         } else {
             rebuildHealthChart();
         }
@@ -1252,11 +1391,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ok) {
                 setConnectionStatus('live');
                 fetchLatestSensors();
-                fetchChartData('24h');
+                fetchChartData('live');
                 fetchFieldHealth();
                 fetchAlerts();
                 fetchEsp32Status();
                 setInterval(fetchEsp32Status, 15000);
+                fetchPumpToday();
+                fetchTankStatus();
             }
         }
     }, 30000);
@@ -1319,6 +1460,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 label.textContent = 'ESP32 Offline';
             }
         }
+        // Show/hide sensor live badges
+        ['liveBadgeMoisture','liveBadgeTemp','liveBadgeHumidity','liveBadgeFlow'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = connected ? 'flex' : 'none';
+        });
         // Sidebar footer dot
         const sidebarDot   = document.querySelector('.device-status .status-dot');
         const sidebarLabel = document.querySelector('.device-status span');
@@ -1406,24 +1552,46 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Data refreshed', 'success');
     });
 
-    // ---------- CSV EXPORT ----------
-    document.getElementById('exportCsvBtn')?.addEventListener('click', () => {
-        const range = document.querySelector('.chip[data-range].active')?.dataset.range || '24h';
-        const header = 'Time,Moisture (%),Temperature (°C),Humidity (%)';
-        const rows = chartLabels.map((lbl, i) =>
-            `${lbl},${moistureData[i] ?? ''},${tempData[i] ?? ''},${humidityData[i] ?? ''}`
-        );
-        const csv = [header, ...rows].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `terrasync-sensors-${range}-${new Date().toISOString().slice(0, 10)}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('CSV exported successfully', 'success');
+    // ---------- CSV EXPORT (dropdown) ----------
+    const csvWrap = document.getElementById('csvWrap');
+    const csvMenu = document.getElementById('csvMenu');
+
+    document.getElementById('exportCsvBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        csvMenu?.classList.toggle('open');
+    });
+    document.addEventListener('click', () => csvMenu?.classList.remove('open'));
+
+    async function downloadCsv(range) {
+        try {
+            const res  = await fetch(`${API_BASE}/sensors/history?field_id=1&range=${range}`);
+            const json = await res.json();
+            if (!json.success || !json.data.length) { showToast('No data for this period', 'warning'); return; }
+            const header = 'Time,Moisture (%),Temperature (°C),Humidity (%),Water Flow (L/min)';
+            const rows = json.data.map(r =>
+                `${r.label},${r.moisture ?? ''},${r.temperature ?? ''},${r.humidity ?? ''},${r.water_flow ?? ''}`
+            );
+            const csv  = [header, ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            const rangeNames = { '1h': 'this-hour', '24h': 'today', '7d': 'this-week' };
+            a.download = `jaslem-farm-${rangeNames[range] || range}-${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`CSV downloaded (${rangeLabelMap[range] || range})`, 'success');
+        } catch { showToast('CSV export failed', 'danger'); }
+        csvMenu?.classList.remove('open');
+    }
+
+    document.querySelectorAll('.csv-opt').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            downloadCsv(btn.dataset.csvRange);
+        });
     });
 
     // ---------- DYNAMIC SENSOR STATUS (Optimal / Warning / Critical) ----------
@@ -1477,21 +1645,6 @@ document.addEventListener('DOMContentLoaded', () => {
             trend.className = `sensor-trend ${dir}`;
             trend.innerHTML = `<i class="fas ${icon}"></i><span>${sign}${diff.toFixed(decimals)}${unit}</span>`;
         });
-    }
-
-    // ---------- AUTO-IRRIGATION (Auto mode only) ----------
-    function checkAutoIrrigation(moisture) {
-        const mode = document.querySelector('.mode-btn.active')?.dataset.mode;
-        if (mode !== 'auto') return;
-        const onThresh  = parseInt(document.getElementById('moistureThreshold')?.value    || '30', 10);
-        const offThresh = parseInt(document.getElementById('moistureThresholdOff')?.value || '60', 10);
-        if (!pumpOn && moisture < onThresh) {
-            setPumpState(true);
-            showToast(`Auto-irrigation ON — moisture at ${moisture.toFixed(0)}%`, 'warning');
-        } else if (pumpOn && moisture >= offThresh) {
-            setPumpState(false);
-            showToast(`Auto-irrigation OFF — moisture restored to ${moisture.toFixed(0)}%`, 'success');
-        }
     }
 
     // ---------- ALERT DISMISS (event delegation) ----------

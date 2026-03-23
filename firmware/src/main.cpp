@@ -20,11 +20,21 @@ DHT dht(DHT_PIN, DHT_TYPE);
 unsigned long lastSensorPost = 0;
 unsigned long lastPumpPoll   = 0;
 
+// ── Flow sensor (YF-S201) ────────────────────────────────────
+volatile uint32_t flowPulseCount = 0;
+unsigned long     flowLastCalc   = 0;
+float             flowRate_lpm   = 0.0f;
+
+void IRAM_ATTR flowPulseISR() {
+    flowPulseCount++;
+}
+
 // ── Forward declarations ─────────────────────────────────────
 void connectWiFi();
 void postSensorData();
 void pollPumpStatus();
 int  readMoisturePercent();
+float readFlowRate();
 void setPump(bool on);
 
 // ─────────────────────────────────────────────────────────────
@@ -36,7 +46,16 @@ void setup() {
     pinMode(PUMP_RELAY_PIN, OUTPUT);
     setPump(false);
 
+    // DHT22 needs INPUT_PULLUP and ~2s to stabilize after power-on
+    pinMode(DHT_PIN, INPUT_PULLUP);
     dht.begin();
+    delay(2000);
+
+    // Flow sensor interrupt on rising edge
+    pinMode(FLOW_PIN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(FLOW_PIN), flowPulseISR, RISING);
+    flowLastCalc = millis();
+
     connectWiFi();
 }
 
@@ -85,6 +104,26 @@ void connectWiFi() {
 }
 
 // ─────────────────────────────────────────────────────────────
+//  Read flow rate from YF-S201 (L/min)
+// ─────────────────────────────────────────────────────────────
+float readFlowRate() {
+    unsigned long now     = millis();
+    unsigned long elapsed = now - flowLastCalc;
+    if (elapsed == 0) return flowRate_lpm;
+
+    noInterrupts();
+    uint32_t pulses = flowPulseCount;
+    flowPulseCount  = 0;
+    interrupts();
+
+    // L/min = (pulses / elapsed_seconds) / calibration_factor
+    flowRate_lpm = (pulses / (elapsed / 1000.0f)) / FLOW_CALIBRATION;
+    flowLastCalc = now;
+    Serial.printf("[Flow]  Pulses: %u  Rate: %.2f L/min\n", pulses, flowRate_lpm);
+    return flowRate_lpm;
+}
+
+// ─────────────────────────────────────────────────────────────
 //  Read soil moisture and map to 0-100 %
 // ─────────────────────────────────────────────────────────────
 int readMoisturePercent() {
@@ -98,19 +137,28 @@ int readMoisturePercent() {
 //  POST /api/sensors
 // ─────────────────────────────────────────────────────────────
 void postSensorData() {
-    float temperature = dht.readTemperature();   // Celsius
-    float humidity    = dht.readHumidity();
-    int   moisture    = readMoisturePercent();
+    float temperature = NAN;
+    float humidity    = NAN;
+
+    // Retry up to 3 times with 500ms gap (DHT22 can miss first reads)
+    for (uint8_t attempt = 0; attempt < 3 && (isnan(temperature) || isnan(humidity)); attempt++) {
+        if (attempt > 0) delay(500);
+        temperature = dht.readTemperature();
+        humidity    = dht.readHumidity();
+    }
+
+    int moisture = readMoisturePercent();
 
     bool dhtValid = !(isnan(temperature) || isnan(humidity));
     if (!dhtValid) {
         temperature = 25.0f;
         humidity = 60.0f;
-        Serial.println("[Sensor] DHT read failed — posting fallback values (Temp 25.0°C, Humidity 60.0%).");
+        Serial.println("[Sensor] DHT read failed after 3 attempts — posting fallback values.");
     }
 
-    Serial.printf("[Sensor] Temp: %.1f°C  Humidity: %.1f%%  Moisture: %d%%\n",
-                  temperature, humidity, moisture);
+    float flow = readFlowRate();
+    Serial.printf("[Sensor] Temp: %.1f°C  Humidity: %.1f%%  Moisture: %d%%  Flow: %.2f L/min\n",
+                  temperature, humidity, moisture, flow);
 
     // Build JSON payload
     JsonDocument doc;
@@ -118,7 +166,7 @@ void postSensorData() {
     doc["temperature"] = serialized(String(temperature, 1));
     doc["humidity"]    = serialized(String(humidity, 1));
     doc["moisture"]    = moisture;
-    doc["water_flow"]  = 0;          // Update if you have a flow sensor
+    doc["water_flow"]  = serialized(String(flow, 2));
 
     String payload;
     serializeJson(doc, payload);

@@ -81,17 +81,42 @@ router.get('/latest', async (req, res) => {
 });
 
 // ────────────────────────────────────────────
-// GET /api/sensors/history?field_id=1&range=24h
+// GET /api/sensors/history?field_id=1&range=live|1h|24h|7d|30d
 // Returns time-series data for charts
-// range: 24h | 7d | 30d
 // ────────────────────────────────────────────
 router.get('/history', async (req, res) => {
   try {
     const fieldId = parseInt(req.query.field_id, 10) || 1;
-    const range   = req.query.range || '24h';
+    const range   = req.query.range || 'live';
+
+    // live  → last 60 raw rows, no grouping (for the 5-second chart)
+    // 1h    → last 60 minutes, grouped per minute (for CSV "this hour")
+    // 24h   → last 24 hours,   grouped per hour
+    // 7d    → last 7 days,     grouped per hour
+    // 30d   → last 30 days,    grouped per day
+    if (range === 'live') {
+      const [rows] = await pool.query(`
+        SELECT
+          DATE_FORMAT(recorded_at, '%H:%i:%s') AS label,
+          ROUND(moisture,    1) AS moisture,
+          ROUND(temperature, 1) AS temperature,
+          ROUND(humidity,    1) AS humidity,
+          ROUND(water_flow,  1) AS water_flow
+        FROM sensor_readings
+        WHERE field_id = ?
+        ORDER BY recorded_at DESC
+        LIMIT 60
+      `, [fieldId]);
+      return res.json({ success: true, data: rows.reverse() });
+    }
 
     let interval, groupBy, dateFormat;
     switch (range) {
+      case '1h':
+        interval   = 'INTERVAL 1 HOUR';
+        groupBy    = "DATE_FORMAT(recorded_at, '%Y-%m-%d %H:%i')";
+        dateFormat = '%H:%i';
+        break;
       case '7d':
         interval   = 'INTERVAL 7 DAY';
         groupBy    = "DATE_FORMAT(recorded_at, '%Y-%m-%d %H:00')";
@@ -111,10 +136,10 @@ router.get('/history', async (req, res) => {
     const [rows] = await pool.query(`
       SELECT
         DATE_FORMAT(recorded_at, '${dateFormat}') AS label,
-        ROUND(AVG(moisture),  1) AS moisture,
+        ROUND(AVG(moisture),    1) AS moisture,
         ROUND(AVG(temperature), 1) AS temperature,
-        ROUND(AVG(humidity),  1) AS humidity,
-        ROUND(AVG(water_flow),1) AS water_flow
+        ROUND(AVG(humidity),    1) AS humidity,
+        ROUND(AVG(water_flow),  1) AS water_flow
       FROM sensor_readings
       WHERE field_id = ? AND recorded_at >= DATE_SUB(NOW(), ${interval})
       GROUP BY ${groupBy}

@@ -24,6 +24,7 @@ app.use('/api/sensors', require('./routes/sensors'));
 app.use('/api/fields',  require('./routes/fields'));
 app.use('/api/alerts',  require('./routes/alerts'));
 app.use('/api/pump',    require('./routes/pump'));
+app.use('/api/tank',    require('./routes/tank'));
 
 // Health check
 app.get('/api/health', async (req, res) => {
@@ -82,6 +83,79 @@ async function start() {
     }
     console.log('└─────────────────────────────────────────────────┘\n');
   });
+
+  // ── Tank Flow Integration Worker ─────────────────
+  // Every 10 s: reads new flow sensor values from sensor_readings
+  // and deducts consumed volume from tank_state.
+  // Pipe dead vol ≈ 0.628 L  (π × r² × L  |  r=0.01 m, L=2 m)
+  const TANK_CAP_L         = 7.0;
+  const TANK_LOW_L         = 1.5;
+  const PIPE_DEAD_L        = +(Math.PI * Math.pow(0.01, 2) * 2 * 1000).toFixed(3);
+  const ALERT_COOLDOWN_MS  = 3_600_000; // 1 hour between same-type alerts
+  let lastLowAlertAt       = 0;
+  let lastCriticalAlertAt  = 0;
+
+  async function integrateTankFlow() {
+    const db = require('./db/connection');
+    const [stateRows] = await db.query('SELECT * FROM tank_state WHERE id = 1');
+    if (!stateRows.length) return;
+    const state = stateRows[0];
+
+    // Fetch only NEW readings since the last processed id
+    const [readings] = await db.query(
+      `SELECT id, water_flow, recorded_at FROM sensor_readings
+         WHERE id > ? ORDER BY id ASC LIMIT 100`,
+      [state.last_reading_id || 0]
+    );
+    if (!readings.length) return;
+
+    let consumed = 0;
+    let lastId   = parseInt(state.last_reading_id) || 0;
+    let prevTime = new Date(state.updated_at);
+
+    for (const r of readings) {
+      const currTime   = new Date(r.recorded_at);
+      const elapsedMin = (currTime - prevTime) / 60_000;
+      const flowLpm    = parseFloat(r.water_flow) || 0;
+      // Accept only realistic YF-S201 range (0.5 – 30 L/min); ignore noise
+      if (flowLpm >= 0.5 && flowLpm < 30 && elapsedMin > 0 && elapsedMin < 5) {
+        consumed += flowLpm * elapsedMin;
+      }
+      prevTime = currTime;
+      lastId   = r.id;
+    }
+
+    const newLevel = +Math.max(0, parseFloat(state.level_liters) - consumed).toFixed(3);
+    await db.execute(
+      'UPDATE tank_state SET level_liters = ?, last_reading_id = ? WHERE id = 1',
+      [newLevel, lastId]
+    );
+
+    const pct = (newLevel / TANK_CAP_L) * 100;
+    const now = Date.now();
+
+    if (newLevel <= PIPE_DEAD_L && (now - lastCriticalAlertAt) > ALERT_COOLDOWN_MS / 2) {
+      lastCriticalAlertAt = now;
+      await db.execute(
+        `INSERT INTO alerts (field_id, type, title, message) VALUES (1, 'danger', ?, ?)`,
+        [
+          '\uD83D\uDEA8 Tank Empty!',
+          `Tank is in the pipe dead zone (${newLevel.toFixed(2)} L). Pump cannot draw water — refill immediately.`
+        ]
+      );
+    } else if (newLevel <= TANK_LOW_L && (now - lastLowAlertAt) > ALERT_COOLDOWN_MS) {
+      lastLowAlertAt = now;
+      await db.execute(
+        `INSERT INTO alerts (field_id, type, title, message) VALUES (1, 'warning', ?, ?)`,
+        [
+          '\u26A0\uFE0F Water Tank Low',
+          `Tank is at ${pct.toFixed(0)}% (${newLevel.toFixed(2)} L remaining). Refill soon to avoid dry-run.`
+        ]
+      );
+    }
+  }
+
+  setInterval(() => integrateTankFlow().catch(() => {}), 10_000);
 }
 
 start();

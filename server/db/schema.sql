@@ -69,16 +69,34 @@ CREATE TABLE IF NOT EXISTS pump_events (
 ) ENGINE=InnoDB;
 
 -- ──────────────────────────────────────────────
--- Seed data — Fields
+-- Tank State  (single-row, id=1)
+-- Tracks current water level accounting for flow sensor data.
+-- Pipe dead volume: π × (0.01m)² × 2m ≈ 0.628 L
 -- ──────────────────────────────────────────────
-INSERT INTO fields (name, crop, crop_icon, status) VALUES
-  ("Yuri's Farm",    'Carrots',   'fa-carrot',    'healthy'),
-  ("Anthony's Farm", 'Corn',      'fa-wheat-awn', 'healthy'),
-  ('Field A',        'Balinghoy', 'fa-leaf',      'warning'),
-  ('Field B',        'Kamote',    'fa-spa',       'warning');
+CREATE TABLE IF NOT EXISTS tank_state (
+  id               INT AUTO_INCREMENT PRIMARY KEY,
+  level_liters     DECIMAL(6,3)  NOT NULL DEFAULT 7.000,
+  last_reset       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  last_reading_id  BIGINT        DEFAULT 0,
+  updated_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Upsert so re-running schema never overwrites an existing level
+INSERT INTO tank_state (id, level_liters, last_reading_id)
+  VALUES (1, 7.000, 0)
+  ON DUPLICATE KEY UPDATE id = 1;
 
 -- ──────────────────────────────────────────────
--- Seed data — Sample sensor readings (last 24h)
+-- Seed data — Fields  (only if table is empty)
+-- ──────────────────────────────────────────────
+INSERT INTO fields (name, crop, crop_icon, status)
+SELECT name, crop, crop_icon, status FROM (
+  SELECT 'Jaslem Farm' AS name, 'Mixed Crops' AS crop, 'fa-seedling' AS crop_icon, 'healthy' AS status
+) AS seed
+WHERE (SELECT COUNT(*) FROM fields) = 0;
+
+-- ──────────────────────────────────────────────
+-- Seed data — Sample sensor readings (only if table is empty)
 -- ──────────────────────────────────────────────
 INSERT INTO sensor_readings (field_id, moisture, temperature, humidity, water_flow, recorded_at)
 SELECT
@@ -95,13 +113,14 @@ FROM (
   UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15
   UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19
   UNION SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23
-) AS hours;
+) AS hours
+WHERE (SELECT COUNT(*) FROM sensor_readings) = 0;
 
 -- ──────────────────────────────────────────────
--- Seed data — Sample alerts
+-- Seed data — Sample alerts  (only if table is empty)
 -- ──────────────────────────────────────────────
-INSERT INTO alerts (field_id, type, title, message) VALUES
-  (3, 'warning', 'High Temperature Alert',  'Field A temperature reached 38.2°C — exceeds optimal range.'),
-  (4, 'warning', 'High Temperature Alert',  'Field B temperature reached 37.2°C — monitor closely.'),
-  (1, 'info',    'Irrigation Completed',     'Auto-irrigation cycle completed for Yuri''s Farm — 2.5L dispensed.'),
-  (NULL, 'success', 'ESP32 Reconnected',     'Device came online after brief disconnection. All sensors nominal.');
+INSERT INTO alerts (field_id, type, title, message)
+SELECT field_id, type, title, message FROM (
+  SELECT 1 AS field_id, 'info' AS type, 'System Ready' AS title, 'TerraSync is online. ESP32 connected and monitoring Jaslem Farm.' AS message
+) AS seed
+WHERE (SELECT COUNT(*) FROM alerts) = 0;
