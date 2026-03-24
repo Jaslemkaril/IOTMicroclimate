@@ -174,12 +174,26 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moistureEl)  { moistureEl.textContent  = parseFloat(moisture).toFixed(0);    flashValue(moistureEl); }
         if (tempEl)      { tempEl.textContent      = parseFloat(temperature).toFixed(1); flashValue(tempEl); }
         if (humidityEl)  { humidityEl.textContent  = parseFloat(humidity).toFixed(0);    flashValue(humidityEl); }
-        if (flowEl)      { flowEl.textContent      = parseFloat(waterFlow).toFixed(1);   flashValue(flowEl); }
+        const flowNum = parseFloat(waterFlow);
+        if (flowEl) {
+            if (flowNum > 30) {
+                // Physically impossible for this pump — firmware not yet reflashed
+                flowEl.textContent = 'ERR';
+                flowEl.title = `Raw value ${flowNum.toFixed(1)} L/min — reflash ESP32 firmware to fix`;
+                flowEl.style.color = '#ef4444';
+                flashValue(flowEl);
+            } else {
+                flowEl.textContent = flowNum.toFixed(1);
+                flowEl.style.color = '';
+                flowEl.title = '';
+                flashValue(flowEl);
+            }
+        }
 
         animateGauge('moistureGauge', moisture);
         animateGauge('tempGauge', (temperature / 50) * 100);
         animateGauge('humidityGauge', humidity);
-        animateGauge('flowGauge', (waterFlow / 30) * 100);
+        animateGauge('flowGauge', Math.min((flowNum / 30) * 100, 100));
 
         document.querySelectorAll('.last-update').forEach(el => {
             el.textContent = 'Updated just now';
