@@ -1586,43 +1586,188 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ---------- PNG IMAGE EXPORT ----------
     document.getElementById('exportImgBtn')?.addEventListener('click', () => {
-        const canvas  = document.getElementById('trendChart');
-        if (!canvas) return;
-        const range   = document.querySelector('.chip[data-range].active')?.dataset.range || 'live';
-        const rangeLabelMapLocal = { live: 'Live', '1h': '1 Hour', '24h': '24h', '7d': '7 Days' };
-        const rangeLabel = rangeLabelMapLocal[range] || range;
-        const timestamp  = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+        const chartCanvas = document.getElementById('trendChart');
+        if (!chartCanvas) return;
 
-        // Draw onto a new canvas with white background + header text
-        const pad    = 48;
-        const out    = document.createElement('canvas');
-        out.width    = canvas.width;
-        out.height   = canvas.height + pad;
-        const ctx    = out.getContext('2d');
+        const range          = document.querySelector('.chip[data-range].active')?.dataset.range || 'live';
+        const rangeLabelMap2 = { live: 'Live (last 60 readings)', '1h': 'Last 1 Hour', '24h': 'Last 24 Hours', '7d': 'Last 7 Days' };
+        const rangeLabel     = rangeLabelMap2[range] || range;
+        const now            = new Date();
+        const timestamp      = now.toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'full', timeStyle: 'medium' });
 
-        // Background
-        ctx.fillStyle = '#0a1a0a';
+        // Collect latest sensor values from DOM
+        const moisture = document.getElementById('moistureValue')?.textContent || '--';
+        const temp     = document.getElementById('tempValue')?.textContent     || '--';
+        const humidity = document.getElementById('humidityValue')?.textContent || '--';
+        const flow     = document.getElementById('flowValue')?.textContent     || '--';
+
+        const W         = Math.max(chartCanvas.width, 900);
+        const HEADER    = 90;
+        const FOOTER    = 64;
+        const SIDEBAR   = 180;
+        const CHART_H   = Math.round(W * 0.42);
+        const H         = HEADER + CHART_H + FOOTER;
+
+        const out = document.createElement('canvas');
+        out.width  = W + SIDEBAR;
+        out.height = H;
+        const ctx  = out.getContext('2d');
+
+        // ── White background ─────────────────────────────────
+        ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, out.width, out.height);
 
-        // Header text
-        ctx.fillStyle = '#86efac';
-        ctx.font      = 'bold 13px Inter, sans-serif';
-        ctx.fillText(`TerraSync — Sensor Trends (${rangeLabel})`, 12, 18);
-        ctx.fillStyle = '#6b7280';
-        ctx.font      = '11px Inter, sans-serif';
-        ctx.fillText(`Jaslem Farm  •  ${timestamp}`, 12, 34);
+        // ── Green header banner ───────────────────────────────
+        const grad = ctx.createLinearGradient(0, 0, W + SIDEBAR, 0);
+        grad.addColorStop(0, '#166534');
+        grad.addColorStop(1, '#15803d');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, out.width, HEADER);
 
-        // Chart
-        ctx.drawImage(canvas, 0, pad);
+        // Logo text
+        ctx.fillStyle = '#ffffff';
+        ctx.font      = 'bold 22px Arial, sans-serif';
+        ctx.fillText('🌿 TerraSync', 20, 32);
 
-        const a = document.createElement('a');
-        a.href     = out.toDataURL('image/png');
-        a.download = `jaslem-farm-${range}-${new Date().toISOString().slice(0,10)}.png`;
+        ctx.fillStyle = '#bbf7d0';
+        ctx.font      = '13px Arial, sans-serif';
+        ctx.fillText('Smart IoT Precision Farming Dashboard', 20, 52);
+
+        // Report title (right-aligned)
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#ffffff';
+        ctx.font      = 'bold 15px Arial, sans-serif';
+        ctx.fillText(`Sensor Trends Report`, W + SIDEBAR - 20, 30);
+        ctx.fillStyle = '#bbf7d0';
+        ctx.font      = '12px Arial, sans-serif';
+        ctx.fillText(`Range: ${rangeLabel}`, W + SIDEBAR - 20, 50);
+        ctx.fillText(`Field: Jaslem Farm`, W + SIDEBAR - 20, 68);
+        ctx.textAlign = 'left';
+
+        // ── Draw chart ────────────────────────────────────────
+        const chartY = HEADER + 8;
+        // Light grey chart background
+        ctx.fillStyle = '#f0fdf4';
+        ctx.fillRect(0, chartY - 8, W, CHART_H + 16);
+        ctx.drawImage(chartCanvas, 0, chartY, W, CHART_H);
+
+        // ── Sidebar: Current Readings ─────────────────────────
+        const sbX = W;
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(sbX, HEADER, SIDEBAR, H - HEADER);
+
+        // Sidebar border
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(sbX, HEADER);
+        ctx.lineTo(sbX, H);
+        ctx.stroke();
+
+        ctx.fillStyle = '#1e293b';
+        ctx.font      = 'bold 12px Arial, sans-serif';
+        ctx.fillText('Current Readings', sbX + 12, HEADER + 24);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font      = '10px Arial, sans-serif';
+        ctx.fillText('Live sensor values', sbX + 12, HEADER + 38);
+
+        // Divider
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(sbX + 12, HEADER + 44, SIDEBAR - 24, 1);
+
+        const readings = [
+            { label: 'Soil Moisture', value: moisture + ' %',   color: '#3b82f6', icon: '💧' },
+            { label: 'Temperature',   value: temp     + ' °C',  color: '#ef4444', icon: '🌡' },
+            { label: 'Humidity',      value: humidity + ' %',   color: '#06b6d4', icon: '💨' },
+            { label: 'Water Flow',    value: flow     + ' L/m', color: '#8b5cf6', icon: '🚿' },
+        ];
+
+        readings.forEach((r, i) => {
+            const ry = HEADER + 58 + i * 52;
+            // Card background
+            ctx.fillStyle = '#ffffff';
+            roundRect(ctx, sbX + 10, ry, SIDEBAR - 20, 44, 6);
+            ctx.fill();
+            ctx.strokeStyle = r.color + '40';
+            ctx.lineWidth   = 1.5;
+            roundRect(ctx, sbX + 10, ry, SIDEBAR - 20, 44, 6);
+            ctx.stroke();
+
+            // Color accent bar
+            ctx.fillStyle = r.color;
+            roundRect(ctx, sbX + 10, ry, 4, 44, 2);
+            ctx.fill();
+
+            // Icon + label
+            ctx.fillStyle = '#64748b';
+            ctx.font      = '10px Arial, sans-serif';
+            ctx.fillText(r.icon + ' ' + r.label, sbX + 20, ry + 16);
+
+            // Value
+            ctx.fillStyle = r.color;
+            ctx.font      = 'bold 15px Arial, sans-serif';
+            ctx.fillText(r.value, sbX + 20, ry + 33);
+        });
+
+        // ── Legend ────────────────────────────────────────────
+        const legendItems = [
+            { label: 'Moisture (%)',      color: '#3b82f6' },
+            { label: 'Temperature (°C)',  color: '#ef4444' },
+            { label: 'Humidity (%)',      color: '#06b6d4' },
+        ];
+        const legendY = HEADER + CHART_H + 20;
+        ctx.fillStyle = '#475569';
+        ctx.font      = 'bold 11px Arial, sans-serif';
+        ctx.fillText('LEGEND:', 20, legendY + 4);
+
+        legendItems.forEach((item, i) => {
+            const lx = 90 + i * 160;
+            ctx.fillStyle = item.color;
+            ctx.fillRect(lx, legendY - 8, 28, 10);
+            ctx.fillStyle = '#1e293b';
+            ctx.font      = '11px Arial, sans-serif';
+            ctx.fillText(item.label, lx + 34, legendY + 2);
+        });
+
+        // ── Footer ────────────────────────────────────────────
+        const footerY = H - FOOTER + 10;
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillRect(0, footerY - 10, out.width, FOOTER + 10);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font      = '10px Arial, sans-serif';
+        ctx.fillText(`Generated: ${timestamp}`, 20, footerY + 10);
+        ctx.fillText('TerraSync — Smart IoT Precision Farming System', 20, footerY + 26);
+        ctx.textAlign = 'right';
+        ctx.fillText('Optimal Moisture: 40–60%   |   Optimal Temp: 20–30°C   |   Optimal Humidity: 50–70%', out.width - SIDEBAR - 10, footerY + 10);
+        ctx.fillText('Printed from localhost:3000', out.width - 20, footerY + 26);
+        ctx.textAlign = 'left';
+
+        // ── Download ──────────────────────────────────────────
+        const a      = document.createElement('a');
+        a.href       = out.toDataURL('image/png');
+        a.download   = `jaslem-farm-${range}-${now.toISOString().slice(0,10)}.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         showToast(`Chart saved as PNG (${rangeLabel})`, 'success');
     });
+
+    function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    }
+
+
 
     // ---------- CSV EXPORT (dropdown) ----------
     const csvWrap = document.getElementById('csvWrap');
