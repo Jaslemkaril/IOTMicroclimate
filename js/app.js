@@ -1418,6 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchLatestSensors();
             fetchChartData('live');
             fetchFieldHealth();
+            setInterval(fetchFieldHealth, 15000);
             fetchAlerts();
             setInterval(fetchAlerts, 30000);
             fetchEsp32Status();
