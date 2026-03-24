@@ -1,0 +1,144 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              TerraSync — Smart IoT Precision Farming System                ║
+║                       Mock Defense Presentation                            ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+  Generated: Tuesday, March 24, 2026 at 8:00 AM
+  Version  : 1.0.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. SYSTEM OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  TerraSync is a real-time IoT precision farming dashboard. An ESP32
+  microcontroller collects soil moisture, temperature, humidity, and water
+  flow data and sends it to a Node.js/MySQL backend via WiFi every
+  10s. A web dashboard at localhost:3000 displays live sensor
+  trends, controls irrigation, and tracks water tank levels.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. HARDWARE COMPONENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Microcontroller   : ESP32 (dual-core, WiFi/BT)
+  Temperature/Humid : DHT22 sensor                → GPIO 4
+  Soil Moisture     : Capacitive sensor (ADC)           → GPIO 34
+                      Dry ADC: 3400   |   Wet ADC: 800
+  Water Flow        : YF-S201 flow meter                → GPIO 27
+                      Calibration: 7.5f pulses/sec per L/min
+  Relay (Pump)      : 1-channel relay module            → GPIO 26
+                      Logic: Active-LOW (LOW = ON)
+  Water Pump        : DC submersible pump via relay COM/NO
+  Field             : Jaslem Farm (Field ID: 1)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. FIRMWARE (ESP32)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Platform          : PlatformIO / Arduino framework
+  WiFi SSID         : DESKTOP-784GAT4 2366
+  Server URL        : http:
+  Sensor post rate  : Every 10s   (POST /api/sensors)
+  Pump poll rate    : Every 5s  (GET  /api/pump/status)
+
+  Data Flow:
+    ESP32 reads sensors → builds JSON payload → HTTP POST to Node.js API
+    ESP32 polls pump status → drives relay GPIO HIGH/LOW accordingly
+
+  DHT22 reliability : 3-retry loop with 500ms gap + INPUT_PULLUP
+  Flow formula      : L/min = (pulses ÷ elapsed_sec) ÷ 7.5f
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. BACKEND (Node.js / Express / MySQL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Runtime     : Node.js  |  Framework: Express ^4.21.2
+  Database    : MySQL (XAMPP)  |  Driver: mysql2 ^3.11.5
+  Port        : 3000
+
+  Database Tables:
+  • fields
+  • sensor_readings
+  • alerts
+  • pump_events
+  • tank_state
+
+  API Endpoints:
+  POST   /api/sensors/
+  GET    /api/sensors/latest
+  GET    /api/sensors/history
+  GET    /api/sensors/esp32-status
+  GET    /api/pump/status
+  POST   /api/pump/toggle
+  GET    /api/pump/today
+  GET    /api/tank/
+  POST   /api/tank/reset
+  GET    /api/alerts/
+  PUT    /api/alerts/read-all
+  PUT    /api/alerts/:id/read
+  GET    /api/fields/
+  POST   /api/fields/
+
+  Background Worker:
+    Tank flow integration runs every 10s — reads new flow sensor readings,
+    deducts consumed volume from tank_state, fires low/critical alerts.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. DASHBOARD FEATURES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Live Sensor Cards   : Soil Moisture, Temperature, Humidity, Water Flow
+                        Updated every 10s — shows delta vs previous reading
+  Sensor Trend Chart  : Chart.js line chart with ranges: 1h | 7d | 30d | live
+                        Live mode auto-refreshes every 3 seconds
+  CSV Export          : Download sensor history — This Hour / Today / This Week
+  Irrigation Control  : Manual toggle → sends ON/OFF to server → ESP32 polls
+                        and drives relay within 5s
+  Water Tank Gauge    : Circular SVG ring showing tank level (7L capacity)
+                        Usable volume = Total − Pipe dead volume (0.63L)
+                        Auto-alerts at low (≤1.5L) and critical (≤0.63L)
+  Crop Health Score   : Computed from live sensor data
+                        Base 50 + moisture factor (±20) + temp (±20) + humidity (±10)
+  Field Management    : Jaslem Farm — status computed from real sensor values
+  Alerts System       : Read/unread alerts with badge counter
+  ESP32 Status Badge  : Online/Offline — polls /api/health every 15s
+  Offline Capable     : All CDN assets (Chart.js, Font Awesome) served locally
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  6. NETWORK SETUP (School Presentation)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Laptop creates Windows Mobile Hotspot
+  ESP32 connects to hotspot SSID: DESKTOP-784GAT4 2366
+  Windows hotspot always assigns: 192.168.137.1 to the host PC
+  ESP32 posts data to           : http:
+  Dashboard accessed at         : http://localhost:3000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  7. STARTUP CHECKLIST (Day of Defense)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  [ ] Turn on Windows Mobile Hotspot (SSID: DESKTOP-784GAT4 2366)
+  [ ] Run start.bat (starts XAMPP MySQL + Node.js server)
+  [ ] Power on ESP32 — watch Serial Monitor for "Connected"
+  [ ] Open http://localhost:3000 in browser
+  [ ] Verify ESP32 Online badge is green in top bar
+  [ ] Check all 4 sensor cards show LIVE badge
+  [ ] Test pump toggle from dashboard (relay clicks within 5s)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  8. TECHNOLOGY STACK SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Hardware   : ESP32, DHT22, Capacitive Moisture, YF-S201, Relay, DC Pump
+  Firmware   : C++ / Arduino / PlatformIO / ArduinoJson / HTTPClient
+  Backend    : Node.js / Express / MySQL2 / CORS / dotenv
+  Frontend   : HTML5 / CSS3 / Vanilla JS / Chart.js / Font Awesome
+  Database   : MySQL 8 (XAMPP)
+  Network    : WiFi (Windows Mobile Hotspot) / REST API / JSON
+  Offline    : All vendor assets bundled locally (no internet required)
+
+──────────────────────────────────────────────────────────────────────────────
+  To regenerate this file after any changes:
+    node generate-presentation.js
+──────────────────────────────────────────────────────────────────────────────
