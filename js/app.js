@@ -464,12 +464,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             if (json.success && json.data.length > 0) {
                 const healthColors = ['#22c55e', '#16a34a', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
-                // Only include fields that have real sensor data
-                const liveFields = json.data.filter(f => f.moisture !== null || f.temperature !== null);
+                // Only include fields that have real, fresh sensor data (within 30s)
+                const liveFields = json.data.filter(f => f.seconds_ago !== null && f.seconds_ago <= 30);
+                if (liveFields.length === 0) {
+                    // ESP32 offline — show 0% health
+                    fieldHealthData = [{ name: 'No Data', score: 0, color: '#4b5563' }];
+                    rebuildHealthChart();
+                    updateFieldTable(json.data);
+                    return;
+                }
                 fieldHealthData = liveFields.map((f, i) => {
-                    const t = f.temperature !== null ? parseFloat(f.temperature) : null;
-                    const m = f.moisture    !== null ? parseFloat(f.moisture)    : null;
-                    const h = f.humidity    !== null ? parseFloat(f.humidity)    : null;
+                    const t = f.temperature !== null && f.seconds_ago <= 30 ? parseFloat(f.temperature) : null;
+                    const m = f.moisture    !== null && f.seconds_ago <= 30 ? parseFloat(f.moisture)    : null;
+                    const h = f.humidity    !== null && f.seconds_ago <= 30 ? parseFloat(f.humidity)    : null;
                     // Score built entirely from live sensor readings
                     let score = 50; // neutral baseline
                     // Moisture: optimal 40-60%

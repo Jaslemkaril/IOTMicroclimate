@@ -16,7 +16,8 @@ router.get('/', async (req, res) => {
     const [rows] = await pool.query(`
       SELECT f.*,
              sr.moisture, sr.temperature, sr.humidity, sr.water_flow,
-             sr.recorded_at AS last_reading_at
+             sr.recorded_at AS last_reading_at,
+             TIMESTAMPDIFF(SECOND, sr.recorded_at, NOW()) AS seconds_ago
       FROM fields f
       LEFT JOIN sensor_readings sr ON sr.id = (
         SELECT MAX(id) FROM sensor_readings WHERE field_id = f.id
