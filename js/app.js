@@ -124,6 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             if (json.success && json.data.length > 0) {
                 const d = json.data[0]; // Primary field
+                const stale = d.seconds_ago > 30; // No reading in last 30s = ESP32 offline
+                if (stale) {
+                    clearSensorUI();
+                    return;
+                }
                 updateSensorUI(d.moisture, d.temperature, d.humidity, d.water_flow);
                 const reading = {
                     moisture:    parseFloat(d.moisture),
@@ -133,10 +138,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (prevSensorReading) updateTrendArrows(reading, prevSensorReading);
                 prevSensorReading = reading;
                 updateSensorCardStatus(d.moisture, d.temperature, d.humidity);
+            } else {
+                clearSensorUI();
             }
         } catch (err) {
             console.warn('Sensor fetch failed:', err.message);
         }
+    }
+
+    function clearSensorUI() {
+        ['moistureValue','tempValue','humidityValue','flowValue'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '--';
+        });
+        ['moistureGauge','tempGauge','humidityGauge','flowGauge'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.width = '0%';
+        });
+        document.querySelectorAll('.last-update').forEach(el => {
+            el.textContent = 'Waiting for ESP32...';
+        });
+        ['liveBadgeMoisture','liveBadgeTemp','liveBadgeHumidity','liveBadgeFlow'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
     }
 
     // Update sensor card UI with real or simulated values

@@ -63,7 +63,9 @@ router.post('/', async (req, res) => {
 router.get('/latest', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT sr.*, f.name AS field_name, f.crop, f.status AS field_status
+      SELECT sr.*,
+             TIMESTAMPDIFF(SECOND, sr.recorded_at, NOW()) AS seconds_ago,
+             f.name AS field_name, f.crop, f.status AS field_status
       FROM sensor_readings sr
       INNER JOIN (
         SELECT field_id, MAX(id) AS max_id
