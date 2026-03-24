@@ -1584,6 +1584,46 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Data refreshed', 'success');
     });
 
+    // ---------- PNG IMAGE EXPORT ----------
+    document.getElementById('exportImgBtn')?.addEventListener('click', () => {
+        const canvas  = document.getElementById('trendChart');
+        if (!canvas) return;
+        const range   = document.querySelector('.chip[data-range].active')?.dataset.range || 'live';
+        const rangeLabelMapLocal = { live: 'Live', '1h': '1 Hour', '24h': '24h', '7d': '7 Days' };
+        const rangeLabel = rangeLabelMapLocal[range] || range;
+        const timestamp  = new Date().toLocaleString('en-PH', { timeZone: 'Asia/Manila' });
+
+        // Draw onto a new canvas with white background + header text
+        const pad    = 48;
+        const out    = document.createElement('canvas');
+        out.width    = canvas.width;
+        out.height   = canvas.height + pad;
+        const ctx    = out.getContext('2d');
+
+        // Background
+        ctx.fillStyle = '#0a1a0a';
+        ctx.fillRect(0, 0, out.width, out.height);
+
+        // Header text
+        ctx.fillStyle = '#86efac';
+        ctx.font      = 'bold 13px Inter, sans-serif';
+        ctx.fillText(`TerraSync — Sensor Trends (${rangeLabel})`, 12, 18);
+        ctx.fillStyle = '#6b7280';
+        ctx.font      = '11px Inter, sans-serif';
+        ctx.fillText(`Jaslem Farm  •  ${timestamp}`, 12, 34);
+
+        // Chart
+        ctx.drawImage(canvas, 0, pad);
+
+        const a = document.createElement('a');
+        a.href     = out.toDataURL('image/png');
+        a.download = `jaslem-farm-${range}-${new Date().toISOString().slice(0,10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`Chart saved as PNG (${rangeLabel})`, 'success');
+    });
+
     // ---------- CSV EXPORT (dropdown) ----------
     const csvWrap = document.getElementById('csvWrap');
     const csvMenu = document.getElementById('csvMenu');
