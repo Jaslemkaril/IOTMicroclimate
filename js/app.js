@@ -569,8 +569,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="mini-bar"><div class="mini-fill fill-${moisture} ${barColor}"></div></div>
                     <span>${moisture}%</span>
                 </td>
-                <td>${temp}</td>
-                <td>${hum}</td>
+                <td class="col-hide-sm">${temp}</td>
+                <td class="col-hide-sm">${hum}</td>
                 <td><button class="btn btn-xs btn-outline">Details</button></td>
             </tr>`;
         }).join('');
@@ -669,6 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastIrrigationEl = document.getElementById('lastIrrigation');
 
     const TANK_CAPACITY_L = 7;
+    const L_TO_GAL = 0.264172;  // 1 litre = 0.264172 US gallons (exact)
 
     let pumpOn = false;
     let waterTotal = 0;
@@ -682,6 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const pct    = data.percent;
         const level  = data.level_liters;
         const status = data.status;
+        const levelGal = level * L_TO_GAL;
 
         // SVG ring
         const ringFill = document.getElementById('tankRingFill');
@@ -701,11 +703,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // L / capacity text
         const textEl = document.getElementById('tankText');
-        if (textEl) textEl.textContent = level.toFixed(1) + ' / ' + data.capacity_liters + ' L';
+        if (textEl) textEl.textContent = level.toFixed(3) + ' / ' + data.capacity_liters + ' L';
 
-        // Remaining
+        // Gallon sub-text in ring
+        const galEl = document.getElementById('tankTextGal');
+        if (galEl) galEl.textContent = levelGal.toFixed(3) + ' gal';
+
+        // Remaining (L)
         const remEl = document.getElementById('tankRemaining');
-        if (remEl) remEl.textContent = level.toFixed(2) + ' L';
+        if (remEl) remEl.textContent = level.toFixed(3) + ' L';
+
+        // Remaining (gal)
+        const remGalEl = document.getElementById('tankRemainingGal');
+        if (remGalEl) remGalEl.textContent = levelGal.toFixed(3) + ' gal';
 
         // Usable %
         const usableEl = document.getElementById('tankUsablePct');
@@ -766,7 +776,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             if (json.success) {
                 waterTotal = parseFloat(json.data.total_liters) || 0;
-                if (totalWaterEl) totalWaterEl.textContent = waterTotal.toFixed(1) + ' L';
+                const waterTotalGal = waterTotal * L_TO_GAL;
+                if (totalWaterEl)  totalWaterEl.textContent  = waterTotal.toFixed(3) + ' L';
+                const galEl = document.getElementById('totalWaterGal');
+                if (galEl) galEl.textContent = waterTotalGal.toFixed(3) + ' gal';
+                // Mirror into tank Used Today rows
+                const usedLEl   = document.getElementById('tankUsedL');
+                const usedGalEl = document.getElementById('tankUsedGal');
+                if (usedLEl)   usedLEl.textContent   = waterTotal.toFixed(3) + ' L';
+                if (usedGalEl) usedGalEl.textContent = waterTotalGal.toFixed(3) + ' gal';
             }
         } catch { /* silent */ }
     }

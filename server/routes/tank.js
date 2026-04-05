@@ -12,10 +12,7 @@
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/connection');
-
-const TANK_CAPACITY_L = 7.0;
-// Pipe dead volume in litres (water that stays in pipe — can't be pumped out)
-const PIPE_DEAD_VOL_L = +(Math.PI * Math.pow(0.01, 2) * 2 * 1000).toFixed(3); // 0.628 L
+const { TANK_CAPACITY_L, PIPE_DEAD_VOL_L } = require('../constants');
 
 // ────────────────────────────────────────────
 // GET /api/tank — current water level
@@ -57,7 +54,7 @@ router.get('/', async (req, res) => {
     });
   } catch (err) {
     console.error('GET /api/tank error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -94,7 +91,7 @@ router.post('/reset', async (req, res) => {
     });
   } catch (err) {
     console.error('POST /api/tank/reset error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

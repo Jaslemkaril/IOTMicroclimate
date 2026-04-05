@@ -362,8 +362,12 @@
 
                     <div class="pump-stats">
                         <div class="pump-stat">
-                            <span class="pump-stat-value" id="totalWater">0 L</span>
-                            <span class="pump-stat-label">Total Today</span>
+                            <span class="pump-stat-value" id="totalWater">0.000 L</span>
+                            <span class="pump-stat-label">Used Today (L)</span>
+                        </div>
+                        <div class="pump-stat">
+                            <span class="pump-stat-value" id="totalWaterGal">0.000 gal</span>
+                            <span class="pump-stat-label">Used Today (gal)</span>
                         </div>
                         <div class="pump-stat">
                             <span class="pump-stat-value" id="lastIrrigation">—</span>
@@ -403,20 +407,37 @@
                                 <div class="tank-ring-center">
                                     <div class="tank-pct-text" id="tankPct">100%</div>
                                     <div class="tank-l-text"   id="tankText">7.0 / 7 L</div>
+                                    <div class="tank-gal-text" id="tankTextGal">1.85 gal</div>
                                 </div>
                             </div>
                             <div class="tank-info">
                                 <div class="ti-row">
-                                    <span class="ti-label">Remaining</span>
-                                    <span class="ti-val" id="tankRemaining">7.0 L</span>
+                                    <span class="ti-label">Remaining (L)</span>
+                                    <span class="ti-val" id="tankRemaining">7.000 L</span>
                                 </div>
                                 <div class="ti-row">
-                                    <span class="ti-label">Pipe Volume</span>
-                                    <span class="ti-val">0.63 L</span>
+                                    <span class="ti-label">Remaining (gal)</span>
+                                    <span class="ti-val" id="tankRemainingGal">1.850 gal</span>
+                                </div>
+                                <div class="ti-row">
+                                    <span class="ti-label">Capacity</span>
+                                    <span class="ti-val">7 L &nbsp;/&nbsp; 1.849 gal</span>
+                                </div>
+                                <div class="ti-row">
+                                    <span class="ti-label">Pipe Dead Vol.</span>
+                                    <span class="ti-val">0.628 L &nbsp;/&nbsp; 0.166 gal</span>
                                 </div>
                                 <div class="ti-row">
                                     <span class="ti-label">Usable</span>
                                     <span class="ti-val" id="tankUsablePct">100%</span>
+                                </div>
+                                <div class="ti-row ti-row-divider">
+                                    <span class="ti-label">Used Today (L)</span>
+                                    <span class="ti-val" id="tankUsedL">0.000 L</span>
+                                </div>
+                                <div class="ti-row">
+                                    <span class="ti-label">Used Today (gal)</span>
+                                    <span class="ti-val" id="tankUsedGal">0.000 gal</span>
                                 </div>
                                 <div class="ti-row">
                                     <span class="ti-label">Status</span>
@@ -458,8 +479,8 @@
                                     <th>Crop</th>
                                     <th>Status</th>
                                     <th>Moisture</th>
-                                    <th>Temperature</th>
-                                    <th>Humidity</th>
+                                    <th class="col-hide-sm">Temperature</th>
+                                    <th class="col-hide-sm">Humidity</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>

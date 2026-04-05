@@ -33,7 +33,7 @@ app.get('/api/health', async (req, res) => {
     await pool.query('SELECT 1');
     res.json({ status: 'ok', database: 'connected' });
   } catch (err) {
-    res.status(503).json({ status: 'error', database: 'disconnected', error: err.message });
+    res.status(503).json({ status: 'error', database: 'disconnected' });
   }
 });
 
@@ -88,9 +88,7 @@ async function start() {
   // Every 10 s: reads new flow sensor values from sensor_readings
   // and deducts consumed volume from tank_state.
   // Pipe dead vol ≈ 0.628 L  (π × r² × L  |  r=0.01 m, L=2 m)
-  const TANK_CAP_L         = 7.0;
-  const TANK_LOW_L         = 1.5;
-  const PIPE_DEAD_L        = +(Math.PI * Math.pow(0.01, 2) * 2 * 1000).toFixed(3);
+  const { TANK_CAPACITY_L: TANK_CAP_L, PIPE_DEAD_VOL_L: PIPE_DEAD_L, TANK_LOW_L } = require('./constants');
   const ALERT_COOLDOWN_MS  = 3_600_000; // 1 hour between same-type alerts
   let lastLowAlertAt       = 0;
   let lastCriticalAlertAt  = 0;
@@ -156,6 +154,22 @@ async function start() {
   }
 
   setInterval(() => integrateTankFlow().catch(() => {}), 10_000);
+
+  // ── Data Retention Worker ───────────────────────────
+  // Every 24 h: prune sensor_readings older than 30 days.
+  // At ~5 s per reading ≈ 17 000 rows/day; keeps the table bounded.
+  async function pruneOldReadings() {
+    const db = require('./db/connection');
+    const [result] = await db.execute(
+      'DELETE FROM sensor_readings WHERE recorded_at < NOW() - INTERVAL 30 DAY'
+    );
+    if (result.affectedRows > 0) {
+      console.log(`[Retention] Pruned ${result.affectedRows} sensor readings older than 30 days.`);
+    }
+  }
+  setInterval(() => pruneOldReadings().catch(err => console.error('[Retention] Error:', err.message)), 24 * 60 * 60 * 1000);
+  // Run once on startup to handle backlogs
+  pruneOldReadings().catch(() => {});
 }
 
 start();

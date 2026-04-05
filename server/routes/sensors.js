@@ -8,22 +8,62 @@ const express = require('express');
 const router  = express.Router();
 const pool    = require('../db/connection');
 
+// ── Simple in-process rate limiter for the ingest endpoint ──
+// Allows at most 1 POST per 2 s per IP address.  The map is
+// pruned every 60 s to prevent unbounded memory growth.
+const _lastSeen = new Map();
+setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  for (const [ip, ts] of _lastSeen) if (ts < cutoff) _lastSeen.delete(ip);
+}, 60_000);
+
+function sensorRateLimit(req, res, next) {
+  const ip  = req.ip || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  if (now - (_lastSeen.get(ip) || 0) < 2000) {
+    return res.status(429).json({ success: false, error: 'Too many requests' });
+  }
+  _lastSeen.set(ip, now);
+  next();
+}
+
 // ────────────────────────────────────────────
 // POST /api/sensors — Receive data from ESP32
 // Body: { field_id, moisture, temperature, humidity, water_flow }
 // ────────────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', sensorRateLimit, async (req, res) => {
   try {
     const { field_id = 1, moisture, temperature, humidity, water_flow } = req.body;
+
+    // ── Validate moisture (required) ──
+    const moisture_f = parseFloat(moisture);
+    if (isNaN(moisture_f) || moisture_f < 0 || moisture_f > 100) {
+      return res.status(400).json({ success: false, error: 'moisture must be 0–100 %' });
+    }
+
+    // ── Validate optional fields (null = DHT22 failed / sensor absent) ──
+    const temperature_f = temperature != null ? parseFloat(temperature) : null;
+    const humidity_f    = humidity    != null ? parseFloat(humidity)    : null;
+    const water_flow_f  = water_flow  != null ? parseFloat(water_flow)  : null;
+
+    if (temperature_f !== null && (isNaN(temperature_f) || temperature_f < -10 || temperature_f > 85)) {
+      return res.status(400).json({ success: false, error: 'temperature must be -10–85 °C' });
+    }
+    if (humidity_f !== null && (isNaN(humidity_f) || humidity_f < 0 || humidity_f > 100)) {
+      return res.status(400).json({ success: false, error: 'humidity must be 0–100 %' });
+    }
+    if (water_flow_f !== null && (isNaN(water_flow_f) || water_flow_f < 0 || water_flow_f > 30)) {
+      return res.status(400).json({ success: false, error: 'water_flow must be 0–30 L/min' });
+    }
 
     await pool.execute(
       `INSERT INTO sensor_readings (field_id, moisture, temperature, humidity, water_flow)
        VALUES (?, ?, ?, ?, ?)`,
-      [field_id, moisture, temperature, humidity, water_flow]
+      [field_id, moisture_f, temperature_f, humidity_f, water_flow_f]
     );
 
-    // Check thresholds and create alerts (max one per type per field per hour)
-    if (temperature > 35) {
+    // ── Threshold alerts (max one per type per field per hour) ──
+    if (temperature_f !== null && temperature_f > 35) {
       const [dup] = await pool.execute(
         `SELECT id FROM alerts WHERE field_id = ? AND title = 'High Temperature Alert' AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
         [field_id]
@@ -32,11 +72,11 @@ router.post('/', async (req, res) => {
         await pool.execute(
           `INSERT INTO alerts (field_id, type, title, message)
            VALUES (?, 'warning', 'High Temperature Alert', ?)`,
-          [field_id, `Temperature reached ${temperature}°C — exceeds optimal range.`]
+          [field_id, `Temperature reached ${temperature_f}°C — exceeds optimal range.`]
         );
       }
     }
-    if (moisture < 30) {
+    if (moisture_f < 30) {
       const [dup] = await pool.execute(
         `SELECT id FROM alerts WHERE field_id = ? AND title = 'Low Soil Moisture' AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
         [field_id]
@@ -45,7 +85,22 @@ router.post('/', async (req, res) => {
         await pool.execute(
           `INSERT INTO alerts (field_id, type, title, message)
            VALUES (?, 'warning', 'Low Soil Moisture', ?)`,
-          [field_id, `Soil moisture dropped to ${moisture}% — consider irrigation.`]
+          [field_id, `Soil moisture dropped to ${moisture_f}% — consider irrigation.`]
+        );
+      }
+    }
+
+    // ── DHT22 failure alert (temperature AND humidity both null) ──
+    if (temperature_f === null && humidity_f === null) {
+      const [dup] = await pool.execute(
+        `SELECT id FROM alerts WHERE field_id = ? AND title = 'DHT22 Sensor Failure' AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
+        [field_id]
+      );
+      if (!dup.length) {
+        await pool.execute(
+          `INSERT INTO alerts (field_id, type, title, message)
+           VALUES (?, 'warning', 'DHT22 Sensor Failure', ?)`,
+          [field_id, 'Temperature and humidity sensor failed to respond. Check DHT22 wiring and power supply.']
         );
       }
     }
@@ -53,7 +108,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, message: 'Reading saved' });
   } catch (err) {
     console.error('POST /api/sensors error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -78,7 +133,7 @@ router.get('/latest', async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('GET /api/sensors/latest error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -151,7 +206,7 @@ router.get('/history', async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('GET /api/sensors/history error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -177,7 +232,7 @@ router.get('/esp32-status', async (req, res) => {
     res.json({ success: true, connected, lastSeen: rows[0].recorded_at, secondsAgo });
   } catch (err) {
     console.error('GET /api/sensors/esp32-status error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

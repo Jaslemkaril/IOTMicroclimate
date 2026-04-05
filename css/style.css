@@ -1921,99 +1921,223 @@ button {
 }
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE  — mobile-first breakpoint ladder
+   1400 → 1200 → 992 → 768 → 576 → 400
    ============================================================ */
+
+/* ── 1400 px  (large laptops, tight topbar) ─────────────── */
+@media (max-width: 1400px) {
+    .search-box input { width: 140px; }
+    .topbar-clock { display: none; }
+}
+
+/* ── 1200 px  (small laptops / landscape tablets) ──────── */
 @media (max-width: 1200px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
+    .search-box input { width: 120px; }
 }
 
+/* ── 992 px  (tablets portrait / collapsed desktop) ────── */
+@media (max-width: 992px) {
+    /* Sidebar auto-collapse to icon rail */
+    .sidebar {
+        width: var(--sidebar-collapsed);
+    }
+    .sidebar .logo-text,
+    .sidebar .toggle-label,
+    .sidebar .sidebar-footer span,
+    .sidebar .nav-item span {
+        display: none;
+    }
+    .sidebar .sidebar-toggle i { transform: rotate(180deg); }
+
+    .main-content {
+        margin-left: var(--sidebar-collapsed);
+    }
+    /* Sidebar: full-width on mobile-open (via JS) */
+    .sidebar.mobile-open {
+        width: var(--sidebar-width);
+        transform: translateX(0);
+    }
+    .sidebar.mobile-open .logo-text,
+    .sidebar.mobile-open .toggle-label,
+    .sidebar.mobile-open .sidebar-footer span,
+    .sidebar.mobile-open .nav-item span {
+        display: unset;
+    }
+
+    /* Topbar */
+    .search-box { display: none; }
+    .user-info   { display: none; }
+    .topbar      { padding: 0 20px; }
+
+    /* Notification & user dropdowns: pin to right edge */
+    .notif-dropdown { right: 16px; }
+    .user-dropdown  { right: 16px; }
+
+    /* Hero */
+    .hero-banner  { margin: 20px 20px 0; padding: 36px 32px; }
+    .hero-text h1 { font-size: 28px; }
+
+    /* Sensor grid: 2 columns on tablets */
+    .sensor-cards  { padding: 20px 20px 0; }
+    .dashboard-grid { padding: 20px 20px 0; }
+}
+
+/* ── 768 px  (phones landscape / small tablets) ─────────── */
 @media (max-width: 768px) {
+    /* Sidebar: hide completely, slide in via overlay */
     .sidebar {
         transform: translateX(-100%);
         width: var(--sidebar-width);
+        z-index: 1010;
     }
-
     .sidebar.mobile-open {
         transform: translateX(0);
+        width: var(--sidebar-width);
+    }
+    .sidebar.mobile-open .logo-text,
+    .sidebar.mobile-open .toggle-label,
+    .sidebar.mobile-open .sidebar-footer span,
+    .sidebar.mobile-open .nav-item span {
+        display: unset;
     }
 
     .main-content {
         margin-left: 0 !important;
     }
+    .mobile-menu-btn { display: flex; }
 
-    .mobile-menu-btn {
-        display: flex;
-    }
+    /* Topbar */
+    .topbar { padding: 0 16px; gap: 8px; }
+    .topbar-right { gap: 6px; }
+    .esp32-badge  { display: none; }   /* de-clutter; shown in sidebar footer */
 
-    .topbar {
-        padding: 0 16px;
-    }
-
-    .search-box {
-        display: none;
-    }
-
-    .user-info {
-        display: none;
-    }
-
+    /* Hero */
     .hero-banner {
         margin: 16px 16px 0;
         padding: 32px 24px;
     }
-
     .hero-content {
         flex-direction: column;
         text-align: center;
+        gap: 24px;
+    }
+    .hero-text { max-width: 100%; }
+    .hero-text h1 { font-size: 24px; }
+    .hero-actions { justify-content: center; flex-wrap: wrap; }
+    .hero-visual  { margin-top: 0; }
+    .hero-circle  { width: 140px; height: 140px; }
+    .hero-circle-inner { width: 100px; height: 100px; }
+    .hero-stat-value   { font-size: 26px; }
+
+    /* Sensor / grid padding */
+    .sensor-cards   { padding: 16px 16px 0; grid-template-columns: 1fr 1fr; }
+    .dashboard-grid { padding: 16px 16px 0; }
+
+    /* Chart chips wrap */
+    .chart-controls { flex-wrap: wrap; }
+
+    /* Notification dropdown full-width on phone */
+    .notif-dropdown {
+        position: fixed;
+        top: var(--topbar-height);
+        left: 8px;
+        right: 8px;
+        width: auto;
+    }
+    .user-dropdown {
+        position: fixed;
+        top: var(--topbar-height);
+        left: 8px;
+        right: 8px;
+        width: auto;
     }
 
-    .hero-text h1 {
-        font-size: 24px;
-    }
+    /* Modal already 90% — make it feel tighter */
+    .modal { width: 95%; max-height: 90vh; }
 
-    .hero-actions {
-        justify-content: center;
-    }
-
-    .hero-visual {
-        margin-top: 20px;
-    }
-
-    .sensor-cards {
-        padding: 16px 16px 0;
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .dashboard-grid {
-        padding: 16px 16px 0;
-    }
-
-    .hero-circle {
-        width: 140px;
-        height: 140px;
-    }
-
-    .hero-circle-inner {
-        width: 100px;
-        height: 100px;
-    }
-
-    .hero-stat-value {
-        font-size: 26px;
-    }
+    /* Footer padding */
+    .main-footer { padding: 24px 16px; }
 }
 
-@media (max-width: 480px) {
-    .sensor-cards {
-        grid-template-columns: 1fr;
+/* ── 576 px  (phones portrait) ──────────────────────────── */
+@media (max-width: 576px) {
+    /* Single-column everything */
+    .sensor-cards { grid-template-columns: 1fr; }
+    .hardware-grid { grid-template-columns: 1fr; }
+    .detail-grid  { grid-template-columns: 1fr; }
+
+    /* Topbar: hide connection badge and breadcrumb subtitle */
+    .connection-badge { display: none; }
+    .breadcrumb        { display: none; }
+    .page-title h2     { font-size: 16px; }
+
+    /* Hero compact */
+    .hero-banner  { padding: 24px 16px; margin: 12px 12px 0; }
+    .hero-text h1 { font-size: 20px; }
+    .hero-text p  { font-size: 13px; }
+    .btn          { padding: 9px 16px; font-size: 13px; }
+
+    /* Card header wraps on very small screens */
+    .card-header { flex-wrap: wrap; gap: 8px; }
+    .card-header h3 { font-size: 14px; }
+
+    /* Pump stats stack */
+    .pump-stats { flex-direction: column; gap: 12px; align-items: center; }
+
+    /* Sensor value font size */
+    .sensor-value .value { font-size: 28px; }
+
+    /* Table: hide less-critical columns */
+    .data-table .col-hide-sm { display: none; }
+
+    /* Toast full-width */
+    .toast-container { left: 8px; right: 8px; bottom: 16px; }
+    .toast { min-width: unset; width: 100%; }
+
+    /* Dashboard padding */
+    .sensor-cards   { padding: 12px 12px 0; gap: 12px; }
+    .dashboard-grid { padding: 12px 12px 0; gap: 12px; }
+
+    /* Chart height reduce */
+    .chart-card .card-body { height: 240px; }
+}
+
+/* ── 400 px  (very small phones, e.g. iPhone SE) ────────── */
+@media (max-width: 400px) {
+    :root {
+        --topbar-height: 56px;
+        --radius: 12px;
+        --radius-sm: 8px;
     }
 
-    .pump-stats {
-        flex-direction: column;
-        gap: 12px;
-    }
+    .topbar { padding: 0 12px; }
+    .topbar-right { gap: 4px; }
+
+    /* Hide theme toggle and refresh to prevent overflow */
+    .icon-btn#refreshBtn { display: none; }
+
+    .hero-banner  { padding: 20px 14px; margin: 10px 10px 0; }
+    .hero-text h1 { font-size: 18px; letter-spacing: -0.5px; }
+    .hero-text p  { display: none; }   /* keep banner compact */
+    .hero-badge   { font-size: 10px; padding: 4px 10px; }
+
+    .sensor-card  { padding: 16px; }
+    .sensor-icon  { width: 40px; height: 40px; font-size: 16px; }
+    .sensor-value .value { font-size: 24px; }
+
+    .card-body    { padding: 16px; }
+    .card-header  { padding: 14px 16px; }
+
+    .chart-card .card-body { height: 200px; }
+
+    .pump-ring { width: 100px; height: 100px; }
+    .pump-icon-wrap { width: 50px; height: 50px; font-size: 20px; }
+
+    .main-footer { font-size: 11px; padding: 20px 12px; }
 }
 
 /* ============================================================
@@ -3843,6 +3967,12 @@ button {
     color: var(--text-muted);
     margin-top: 3px;
 }
+.tank-gal-text {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 1px;
+    opacity: 0.75;
+}
 
 /* Info rows */
 .tank-info {
@@ -3859,6 +3989,11 @@ button {
 }
 .ti-label { color: var(--text-muted); }
 .ti-val   { font-weight: 600; color: var(--text); }
+.ti-row-divider {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-light);
+}
 
 /* Progress bar (kept for at-a-glance colour) */
 .tank-bar-wrap {

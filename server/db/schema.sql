@@ -87,6 +87,22 @@ INSERT INTO tank_state (id, level_liters, last_reading_id)
   ON DUPLICATE KEY UPDATE id = 1;
 
 -- ──────────────────────────────────────────────
+-- Pump State  (single-row, id=1)
+-- Persists pump on/off state across server restarts.
+-- ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS pump_state (
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  is_on      TINYINT(1)  NOT NULL DEFAULT 0,
+  mode       VARCHAR(20) NOT NULL DEFAULT 'manual',
+  started_at TIMESTAMP   NULL     DEFAULT NULL,
+  updated_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT INTO pump_state (id, is_on, mode)
+  VALUES (1, 0, 'manual')
+  ON DUPLICATE KEY UPDATE id = 1;
+
+-- ──────────────────────────────────────────────
 -- Seed data — Fields  (only if table is empty)
 -- ──────────────────────────────────────────────
 INSERT INTO fields (name, crop, crop_icon, status)

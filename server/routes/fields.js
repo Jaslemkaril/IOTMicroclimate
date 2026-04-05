@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data });
   } catch (err) {
     console.error('GET /api/fields error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -65,7 +65,7 @@ router.post('/', async (req, res) => {
     res.status(201).json({ success: true, id: result.insertId });
   } catch (err) {
     console.error('POST /api/fields error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

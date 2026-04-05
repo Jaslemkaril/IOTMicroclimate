@@ -46,10 +46,10 @@ void setup() {
     pinMode(PUMP_RELAY_PIN, OUTPUT);
     setPump(false);
 
-    // DHT22 needs INPUT_PULLUP and ~2s to stabilize after power-on
+    // DHT22 needs INPUT_PULLUP and ~3s to stabilize after power-on
     pinMode(DHT_PIN, INPUT_PULLUP);
     dht.begin();
-    delay(2000);
+    delay(3000);
 
     // Flow sensor interrupt on rising edge
     pinMode(FLOW_PIN, INPUT_PULLUP);
@@ -140,20 +140,19 @@ void postSensorData() {
     float temperature = NAN;
     float humidity    = NAN;
 
-    // Retry up to 3 times with 500ms gap (DHT22 can miss first reads)
+    // Retry up to 3 times with 2s gap (DHT22 minimum sample rate is 2s)
     for (uint8_t attempt = 0; attempt < 3 && (isnan(temperature) || isnan(humidity)); attempt++) {
-        if (attempt > 0) delay(500);
+        if (attempt > 0) delay(2000);
         temperature = dht.readTemperature();
         humidity    = dht.readHumidity();
+        Serial.printf("[DHT22] Attempt %u: T=%.1f H=%.1f\n", attempt + 1, temperature, humidity);
     }
 
     int moisture = readMoisturePercent();
 
     bool dhtValid = !(isnan(temperature) || isnan(humidity));
     if (!dhtValid) {
-        temperature = 25.0f;
-        humidity = 60.0f;
-        Serial.println("[Sensor] DHT read failed after 3 attempts — posting fallback values.");
+        Serial.println("[Sensor] DHT read failed after 3 attempts — sending null for temperature & humidity.");
     }
 
     float flow = readFlowRate();
@@ -162,11 +161,17 @@ void postSensorData() {
 
     // Build JSON payload
     JsonDocument doc;
-    doc["field_id"]    = FIELD_ID;
-    doc["temperature"] = serialized(String(temperature, 1));
-    doc["humidity"]    = serialized(String(humidity, 1));
-    doc["moisture"]    = moisture;
-    doc["water_flow"]  = serialized(String(flow, 2));
+    doc["field_id"]   = FIELD_ID;
+    doc["moisture"]   = moisture;
+    doc["water_flow"] = serialized(String(flow, 2));
+    if (dhtValid) {
+        doc["temperature"] = serialized(String(temperature, 1));
+        doc["humidity"]    = serialized(String(humidity, 1));
+    } else {
+        // Explicit null so the server can raise a DHT22 failure alert
+        doc["temperature"] = nullptr;
+        doc["humidity"]    = nullptr;
+    }
 
     String payload;
     serializeJson(doc, payload);

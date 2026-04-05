@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error('GET /api/alerts error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -38,7 +38,7 @@ router.put('/read-all', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('PUT /api/alerts/read-all error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
@@ -51,7 +51,7 @@ router.put('/:id/read', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('PUT /api/alerts/:id/read error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 
