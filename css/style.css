@@ -3794,6 +3794,15 @@ button {
 /* ── Linter-fix utility classes (replaces inline styles) ── */
 .badge-hidden { display: none; }
 
+.live-badge-hidden { display: none; }
+
+.csv-caret {
+    margin-left: 3px;
+    font-size: 9px;
+}
+
+.tank-fill-full { width: 100%; }
+
 .empty-td {
     text-align: center;
     padding: 32px;

@@ -192,7 +192,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> Capacitive Sensor</span>
                     <span class="last-update">No data yet</span>
                 </div>
-                <span class="sensor-live-badge" id="liveBadgeMoisture" style="display:none"><span class="live-pulse"></span>LIVE</span>
+                <span class="sensor-live-badge live-badge-hidden" id="liveBadgeMoisture"><span class="live-pulse"></span>LIVE</span>
             </div>
 
             <!-- Temperature -->
@@ -227,7 +227,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> DHT22 Sensor</span>
                     <span class="last-update">No data yet</span>
                 </div>
-                <span class="sensor-live-badge" id="liveBadgeTemp" style="display:none"><span class="live-pulse"></span>LIVE</span>
+                <span class="sensor-live-badge live-badge-hidden" id="liveBadgeTemp"><span class="live-pulse"></span>LIVE</span>
             </div>
 
             <!-- Humidity -->
@@ -262,7 +262,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> DHT22 Sensor</span>
                     <span class="last-update">No data yet</span>
                 </div>
-                <span class="sensor-live-badge" id="liveBadgeHumidity" style="display:none"><span class="live-pulse"></span>LIVE</span>
+                <span class="sensor-live-badge live-badge-hidden" id="liveBadgeHumidity"><span class="live-pulse"></span>LIVE</span>
             </div>
 
             <!-- Water Flow -->
@@ -297,7 +297,7 @@
                     <span class="sensor-status optimal"><i class="fas fa-circle"></i> Flow Meter</span>
                     <span class="last-update">No data yet</span>
                 </div>
-                <span class="sensor-live-badge" id="liveBadgeFlow" style="display:none"><span class="live-pulse"></span>LIVE</span>
+                <span class="sensor-live-badge live-badge-hidden" id="liveBadgeFlow"><span class="live-pulse"></span>LIVE</span>
             </div>
         </section>
 
@@ -315,7 +315,7 @@
                         <div class="chart-sep"></div>
                         <!-- CSV dropdown -->
                         <div class="csv-wrap" id="csvWrap">
-                            <button class="chip" id="exportCsvBtn" title="Export CSV"><i class="fas fa-download"></i> CSV <i class="fas fa-caret-down" style="margin-left:3px;font-size:9px"></i></button>
+                            <button class="chip" id="exportCsvBtn" title="Export CSV"><i class="fas fa-download"></i> CSV <i class="fas fa-caret-down csv-caret"></i></button>
                             <div class="csv-menu" id="csvMenu">
                                 <button class="csv-opt" data-csv-range="1h">This Hour</button>
                                 <button class="csv-opt" data-csv-range="24h">Today (24h)</button>
@@ -448,7 +448,7 @@
 
                         <!-- Progress bar -->
                         <div class="tank-bar-wrap">
-                            <div class="tank-bar-fill" id="tankFill" style="width:100%"></div>
+                            <div class="tank-bar-fill tank-fill-full" id="tankFill"></div>
                         </div>
 
                         <!-- Low-water banner (shown when status = low / critical / empty) -->
