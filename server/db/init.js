@@ -20,7 +20,14 @@ async function initDatabase({ silent = false } = {}) {
     });
 
     const schemaPath = path.join(__dirname, 'schema.sql');
-    const sql = fs.readFileSync(schemaPath, 'utf-8');
+    let sql = fs.readFileSync(schemaPath, 'utf-8');
+
+    // Railway / managed MySQL already provisions the database;
+    // skip CREATE DATABASE and USE so we don't error on restricted hosts.
+    if (process.env.DB_NAME) {
+      sql = sql.replace(/CREATE DATABASE\s+[^;]+;/gi, '')
+               .replace(/USE\s+[^;]+;/gi, '');
+    }
 
     if (!silent) console.log('⏳ Running schema.sql …');
     await conn.query(sql);

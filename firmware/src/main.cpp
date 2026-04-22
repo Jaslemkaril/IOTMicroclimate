@@ -19,6 +19,7 @@ DHT dht(DHT_PIN, DHT_TYPE);
 
 unsigned long lastSensorPost = 0;
 unsigned long lastPumpPoll   = 0;
+unsigned long lastNetProbe   = 0;
 
 // ── Flow sensor (YF-S201) ────────────────────────────────────
 volatile uint32_t flowPulseCount = 0;
@@ -31,6 +32,7 @@ void IRAM_ATTR flowPulseISR() {
 
 // ── Forward declarations ─────────────────────────────────────
 void connectWiFi();
+void probeServerConnectivity();
 void postSensorData();
 void pollPumpStatus();
 int  readMoisturePercent();
@@ -78,6 +80,12 @@ void loop() {
         lastPumpPoll = now;
         pollPumpStatus();
     }
+
+    // Periodic network probe helps diagnose LAN routing/firewall behavior.
+    if (now - lastNetProbe >= 30000UL) {
+        lastNetProbe = now;
+        probeServerConnectivity();
+    }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -86,6 +94,7 @@ void loop() {
 void connectWiFi() {
     Serial.printf("[WiFi] Connecting to %s", WIFI_SSID);
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     uint8_t tries = 0;
@@ -96,11 +105,50 @@ void connectWiFi() {
     }
 
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\n[WiFi] Connected — IP: %s\n",
-                      WiFi.localIP().toString().c_str());
+        Serial.printf("\n[WiFi] Connected — IP: %s  Gateway: %s  RSSI: %d dBm\n",
+                      WiFi.localIP().toString().c_str(),
+                      WiFi.gatewayIP().toString().c_str(),
+                      WiFi.RSSI());
+        probeServerConnectivity();
     } else {
         Serial.println("\n[WiFi] Failed to connect. Will retry in next loop.");
     }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  One-shot TCP probe to pinpoint LAN path issues.
+//  It checks the configured server port and port 80 on the same host.
+// ─────────────────────────────────────────────────────────────
+void probeServerConnectivity() {
+    String base = String(SERVER_BASE_URL);
+    int hostStart = base.indexOf("://");
+    hostStart = (hostStart >= 0) ? hostStart + 3 : 0;
+
+    int pathSep = base.indexOf('/', hostStart);
+    if (pathSep < 0) pathSep = base.length();
+
+    int portSep = base.indexOf(':', hostStart);
+    String host;
+    int configuredPort = 80;
+
+    if (portSep > 0 && portSep < pathSep) {
+        host = base.substring(hostStart, portSep);
+        configuredPort = base.substring(portSep + 1, pathSep).toInt();
+    } else {
+        host = base.substring(hostStart, pathSep);
+    }
+
+    WiFiClient client;
+    bool cfgOk = client.connect(host.c_str(), configuredPort);
+    if (cfgOk) client.stop();
+
+    bool p80Ok = client.connect(host.c_str(), 80);
+    if (p80Ok) client.stop();
+
+    Serial.printf("[NetProbe] Host=%s ConfigPort=%d Reachable=%s Port80Reachable=%s\n",
+                  host.c_str(), configuredPort,
+                  cfgOk ? "YES" : "NO",
+                  p80Ok ? "YES" : "NO");
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -186,8 +234,17 @@ void postSensorData() {
     if (code == 201) {
         Serial.println("[HTTP]  POST /api/sensors → 201 Created");
     } else {
-        Serial.printf("[HTTP]  POST /api/sensors → %d  %s\n",
-                      code, http.getString().c_str());
+        if (code < 0) {
+            Serial.printf("[HTTP]  POST /api/sensors → %d (%s)  url=%s  wifi=%d  ip=%s\n",
+                          code,
+                          HTTPClient::errorToString(code).c_str(),
+                          url.c_str(),
+                          (int)WiFi.status(),
+                          WiFi.localIP().toString().c_str());
+        } else {
+            Serial.printf("[HTTP]  POST /api/sensors → %d  %s\n",
+                          code, http.getString().c_str());
+        }
     }
     http.end();
 }
@@ -213,7 +270,16 @@ void pollPumpStatus() {
             Serial.printf("[Pump]  JSON parse error: %s\n", err.c_str());
         }
     } else {
-        Serial.printf("[HTTP]  GET /api/pump/status → %d\n", code);
+        if (code < 0) {
+            Serial.printf("[HTTP]  GET /api/pump/status → %d (%s)  url=%s  wifi=%d  ip=%s\n",
+                          code,
+                          HTTPClient::errorToString(code).c_str(),
+                          url.c_str(),
+                          (int)WiFi.status(),
+                          WiFi.localIP().toString().c_str());
+        } else {
+            Serial.printf("[HTTP]  GET /api/pump/status → %d\n", code);
+        }
     }
     http.end();
 }

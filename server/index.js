@@ -60,7 +60,7 @@ async function start() {
     console.error('   → Check credentials in .env\n');
   }
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     const lanIPs = getLanIPs();
 
     console.log('\n┌─────────────────────────────────────────────────┐');

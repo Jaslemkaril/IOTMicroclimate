@@ -90,9 +90,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------- API CONFIGURATION ----------
-    // Always target the Express server on port 3000, regardless of what port
-    // served this HTML (e.g. VS Code Live Server on :5500 still works).
-    const API_BASE = `${window.location.protocol}//${window.location.hostname}:3000/api`;
+    // Use relative /api when served by the Express server itself (port 3000 or
+    // production). Fall back to port 3000 only when running via a separate dev
+    // server (e.g. VS Code Live Server on :5500).
+    const API_BASE = window.location.port && window.location.port !== '3000'
+        ? `${window.location.protocol}//${window.location.hostname}:3000/api`
+        : `${window.location.protocol}//${window.location.host}/api`;
     let apiAvailable = false;
 
     // Check if backend is running
