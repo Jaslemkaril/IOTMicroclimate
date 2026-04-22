@@ -38,6 +38,9 @@
 // ── Laptop Hotspot — Windows always assigns 192.168.137.1 ────
 // #define SERVER_BASE_URL "http://192.168.137.1:3000"
 
+// ── Railway Cloud (no port needed, HTTPS) ──────────────────
+// #define SERVER_BASE_URL "https://iotmicroclimate-production.up.railway.app"
+
 
 // ────────────────────────────────────────────────────────────
 //  STEP 3 (Optional) — Field ID
@@ -61,6 +64,10 @@
 // Relay module controlling the water pump
 #define PUMP_RELAY_PIN   26         // GPIO26 — relay IN
 #define RELAY_ACTIVE_LOW true       // true = most relay boards; false = active-HIGH
+
+// Flow sensor (YF-S201) — optional, set to -1 if unused
+#define FLOW_PIN         18         // GPIO18 — pulse output (interrupt-capable)
+#define FLOW_CALIBRATION 450.0f     // pulses per litre (YF-S201 ≈ 450)
 
 
 // ============================================================

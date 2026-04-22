@@ -8,6 +8,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
@@ -16,6 +17,11 @@
 
 // ── Globals ──────────────────────────────────────────────────
 DHT dht(DHT_PIN, DHT_TYPE);
+
+// Shared secure client for HTTPS (Railway). setInsecure() skips cert verification
+// so the ESP32 can connect without embedding a root CA. Acceptable for IoT-to-cloud.
+WiFiClientSecure secureClient;
+bool secureReady = false;
 
 unsigned long lastSensorPost = 0;
 unsigned long lastPumpPoll   = 0;
@@ -121,6 +127,8 @@ void connectWiFi() {
 // ─────────────────────────────────────────────────────────────
 void probeServerConnectivity() {
     String base = String(SERVER_BASE_URL);
+    bool isHttps = base.startsWith("https://");
+
     int hostStart = base.indexOf("://");
     hostStart = (hostStart >= 0) ? hostStart + 3 : 0;
 
@@ -129,7 +137,7 @@ void probeServerConnectivity() {
 
     int portSep = base.indexOf(':', hostStart);
     String host;
-    int configuredPort = 80;
+    int configuredPort = isHttps ? 443 : 80;
 
     if (portSep > 0 && portSep < pathSep) {
         host = base.substring(hostStart, portSep);
@@ -138,17 +146,20 @@ void probeServerConnectivity() {
         host = base.substring(hostStart, pathSep);
     }
 
-    WiFiClient client;
-    bool cfgOk = client.connect(host.c_str(), configuredPort);
-    if (cfgOk) client.stop();
+    bool cfgOk = false;
+    if (isHttps) {
+        if (!secureReady) { secureClient.setInsecure(); secureReady = true; }
+        cfgOk = secureClient.connect(host.c_str(), configuredPort);
+        if (cfgOk) secureClient.stop();
+    } else {
+        WiFiClient client;
+        cfgOk = client.connect(host.c_str(), configuredPort);
+        if (cfgOk) client.stop();
+    }
 
-    bool p80Ok = client.connect(host.c_str(), 80);
-    if (p80Ok) client.stop();
-
-    Serial.printf("[NetProbe] Host=%s ConfigPort=%d Reachable=%s Port80Reachable=%s\n",
-                  host.c_str(), configuredPort,
-                  cfgOk ? "YES" : "NO",
-                  p80Ok ? "YES" : "NO");
+    Serial.printf("[NetProbe] Host=%s HTTPS=%s Port=%d Reachable=%s\n",
+                  host.c_str(), isHttps ? "YES" : "NO", configuredPort,
+                  cfgOk ? "YES" : "NO");
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -227,7 +238,12 @@ void postSensorData() {
     // HTTP POST
     HTTPClient http;
     String url = String(SERVER_BASE_URL) + "/api/sensors";
-    http.begin(url);
+    if (url.startsWith("https://")) {
+        if (!secureReady) { secureClient.setInsecure(); secureReady = true; }
+        http.begin(secureClient, url);
+    } else {
+        http.begin(url);
+    }
     http.addHeader("Content-Type", "application/json");
 
     int code = http.POST(payload);
@@ -255,7 +271,12 @@ void postSensorData() {
 void pollPumpStatus() {
     HTTPClient http;
     String url = String(SERVER_BASE_URL) + "/api/pump/status";
-    http.begin(url);
+    if (url.startsWith("https://")) {
+        if (!secureReady) { secureClient.setInsecure(); secureReady = true; }
+        http.begin(secureClient, url);
+    } else {
+        http.begin(url);
+    }
 
     int code = http.GET();
     if (code == 200) {
