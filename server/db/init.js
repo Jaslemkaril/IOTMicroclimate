@@ -16,6 +16,11 @@ async function initDatabase({ silent = false } = {}) {
       port:               parseInt(process.env.DB_PORT, 10) || 3306,
       user:               process.env.DB_USER     || 'root',
       password:           process.env.DB_PASSWORD || '',
+      // On managed hosts (Railway, PlanetScale, etc.) the database already
+      // exists — connect straight to it. Locally we omit it so CREATE DATABASE
+      // in schema.sql can create it on first run.
+      database:           process.env.DB_NAME     || undefined,
+      ssl:                process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
       multipleStatements: true
     });
 
