@@ -103,11 +103,19 @@ INSERT INTO pump_state (id, is_on, mode)
   ON DUPLICATE KEY UPDATE id = 1;
 
 -- ──────────────────────────────────────────────
--- Seed data — Fields  (only if table is empty)
+-- Seed data — 4 Plant Fields  (only if table is empty)
+-- Each plant maps to one soil moisture sensor on a dedicated ESP32.
+--   Plant-A → field_id 1 → FIELD_ID 1 in config.h
+--   Plant-B → field_id 2 → FIELD_ID 2 in config.h
+--   Plant-C → field_id 3 → FIELD_ID 3 in config.h
+--   Plant-D → field_id 4 → FIELD_ID 4 in config.h
 -- ──────────────────────────────────────────────
 INSERT INTO fields (name, crop, crop_icon, status)
 SELECT name, crop, crop_icon, status FROM (
-  SELECT 'Jaslem Farm' AS name, 'Mixed Crops' AS crop, 'fa-seedling' AS crop_icon, 'healthy' AS status
+  SELECT 'Plant-A' AS name, 'Sensor 1' AS crop, 'fa-seedling' AS crop_icon, 'healthy' AS status UNION ALL
+  SELECT 'Plant-B',         'Sensor 2',          'fa-leaf',                  'healthy'           UNION ALL
+  SELECT 'Plant-C',         'Sensor 3',          'fa-cannabis',              'healthy'           UNION ALL
+  SELECT 'Plant-D',         'Sensor 4',          'fa-spa',                   'healthy'
 ) AS seed
 WHERE (SELECT COUNT(*) FROM fields) = 0;
 

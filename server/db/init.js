@@ -37,6 +37,29 @@ async function initDatabase({ silent = false } = {}) {
     if (!silent) console.log('⏳ Running schema.sql …');
     await conn.query(sql);
     if (!silent) console.log('✅ Database "terrasync" ready.');
+
+    // ── Migrate to 4-plant setup ──────────────────────────────
+    // If the fields table has old single-field data (Jaslem Farm / Mak),
+    // replace it with the 4 coded plant fields.
+    const [fields] = await conn.query('SELECT id, name FROM fields ORDER BY id');
+    const names = fields.map(f => f.name);
+    const isOldSetup = names.length < 4 ||
+      names.some(n => ['Jaslem Farm', 'Mak'].includes(n));
+
+    if (isOldSetup) {
+      if (!silent) console.log('🌱 Migrating to 4-plant setup…');
+      await conn.query('DELETE FROM fields');
+      await conn.query('ALTER TABLE fields AUTO_INCREMENT = 1');
+      await conn.query(`
+        INSERT INTO fields (name, crop, crop_icon, status) VALUES
+          ('Plant-A', 'Sensor 1', 'fa-seedling', 'healthy'),
+          ('Plant-B', 'Sensor 2', 'fa-leaf',     'healthy'),
+          ('Plant-C', 'Sensor 3', 'fa-cannabis', 'healthy'),
+          ('Plant-D', 'Sensor 4', 'fa-spa',      'healthy')
+      `);
+      if (!silent) console.log('✅ 4 plant fields ready: Plant-A, Plant-B, Plant-C, Plant-D');
+    }
+
     return true;
   } catch (err) {
     if (!silent) {
