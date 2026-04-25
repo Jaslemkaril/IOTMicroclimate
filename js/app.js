@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const mDisplay = mVal !== null ? mVal : 0;
             const barColor = mDisplay > 65 ? 'bg-orange' : 'bg-green';
-            return `<tr>
+            return `<tr data-field-id="${f.id}" data-field-name="${f.name}" data-field-crop="${f.crop || ''}" data-field-icon="${f.crop_icon || 'fa-leaf'}">
                 <td><strong>${f.name}</strong></td>
                 <td><i class="fas ${f.crop_icon || 'fa-leaf'}"></i> ${f.crop || 'N/A'}</td>
                 <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
@@ -574,7 +574,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td class="col-hide-sm">${temp}</td>
                 <td class="col-hide-sm">${hum}</td>
-                <td><button class="btn btn-xs btn-outline">Details</button></td>
+                <td class="field-actions-cell">
+                    <button class="btn btn-xs btn-outline btn-details">Details</button>
+                    <button class="btn btn-xs btn-edit" title="Edit plant"><i class="fas fa-pen"></i></button>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -1246,13 +1249,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ---------- FIELD DETAILS MODAL ----------
-    // Event delegation for Details buttons (works for dynamically added rows too)
+    // Event delegation for Details and Edit buttons (works for dynamically added rows too)
     document.getElementById('fieldTable')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('.btn');
-        if (!btn || !btn.textContent.includes('Details')) return;
-
-        const row = btn.closest('tr');
+        const row = e.target.closest('tr');
         if (!row) return;
+
+        // ── Edit button ──────────────────────────────
+        if (e.target.closest('.btn-edit')) {
+            const fieldId   = row.dataset.fieldId;
+            const fieldName = row.dataset.fieldName;
+            const fieldCrop = row.dataset.fieldCrop;
+            const fieldIcon = row.dataset.fieldIcon;
+
+            document.getElementById('editFieldId').value       = fieldId;
+            document.getElementById('editFieldName').value     = fieldName;
+            document.getElementById('editFieldCrop').value     = fieldCrop;
+            document.getElementById('editFieldIcon').value     = fieldIcon;
+            openModal('editFieldModal');
+            return;
+        }
+
+        // ── Details button ───────────────────────────
+        if (!e.target.closest('.btn-details')) return;
 
         const cells = row.querySelectorAll('td');
         const fieldName = cells[0]?.textContent.trim() || 'Unknown';
@@ -1272,6 +1290,35 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('detailLastReading').textContent = 'Just now';
 
         openModal('fieldDetailModal');
+    });
+
+    // ---------- EDIT FIELD FORM SUBMIT ----------
+    document.getElementById('editFieldForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id       = document.getElementById('editFieldId').value;
+        const name     = document.getElementById('editFieldName').value.trim();
+        const crop     = document.getElementById('editFieldCrop').value;
+        const cropIcon = document.getElementById('editFieldIcon').value;
+
+        if (!name) { showToast('Plant name is required', 'warning'); return; }
+
+        try {
+            const res  = await fetch(`${API_BASE}/fields/${id}`, {
+                method:  'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ name, crop, crop_icon: cropIcon })
+            });
+            const json = await res.json();
+            if (json.success) {
+                showToast(`"${name}" updated successfully!`, 'success');
+                closeModal('editFieldModal');
+                fetchFieldHealth(); // refresh table
+            } else {
+                showToast('Update failed: ' + json.error, 'error');
+            }
+        } catch (err) {
+            showToast('API error: ' + err.message, 'error');
+        }
     });
 
     // ---------- VIEW ALL ALERTS ----------

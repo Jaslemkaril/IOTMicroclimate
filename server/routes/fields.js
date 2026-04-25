@@ -69,4 +69,29 @@ router.post('/', async (req, res) => {
   }
 });
 
+// ────────────────────────────────────────────
+// PUT /api/fields/:id — Update a field
+// Body: { name, crop, crop_icon }
+// ────────────────────────────────────────────
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, crop, crop_icon } = req.body;
+    if (!name) return res.status(400).json({ success: false, error: 'name is required' });
+
+    const [result] = await pool.execute(
+      `UPDATE fields SET name = ?, crop = ?, crop_icon = ? WHERE id = ?`,
+      [name, crop || null, crop_icon || 'fa-leaf', id]
+    );
+
+    if (result.affectedRows === 0)
+      return res.status(404).json({ success: false, error: 'Field not found' });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT /api/fields/:id error:', err.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

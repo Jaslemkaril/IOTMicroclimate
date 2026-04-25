@@ -670,6 +670,30 @@ button {
     font-size: 12px;
 }
 
+/* Edit button in field table */
+.btn-edit {
+    padding: 4px 8px;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1;
+}
+.btn-edit:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+.field-actions-cell {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .card .btn-outline {
     border-color: var(--border);
     color: var(--text-secondary);
@@ -2093,6 +2117,16 @@ button {
 
     /* Table: hide less-critical columns */
     .data-table .col-hide-sm { display: none; }
+
+    /* Field table responsive — stack actions */
+    .field-actions-cell { flex-direction: column; gap: 4px; }
+    .field-actions-cell .btn-xs,
+    .field-actions-cell .btn-edit { width: 100%; text-align: center; justify-content: center; }
+
+    /* Field table — make name column not overflow */
+    #fieldTable td:first-child { max-width: 80px; word-break: break-word; font-size: 12px; }
+    #fieldTable td { font-size: 12px; padding: 8px 6px; }
+    #fieldTable th { font-size: 11px; padding: 8px 6px; }
 
     /* Toast full-width */
     .toast-container { left: 8px; right: 8px; bottom: 16px; }
