@@ -60,8 +60,11 @@ void setup() {
     delay(3000);
 
     // Flow sensor interrupt on rising edge
-    pinMode(FLOW_PIN, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(FLOW_PIN), flowPulseISR, RISING);
+    // Only attach if a valid pin is configured (set FLOW_PIN to -1 to disable)
+    if (FLOW_PIN >= 0) {
+        pinMode(FLOW_PIN, INPUT_PULLUP);
+        attachInterrupt(digitalPinToInterrupt(FLOW_PIN), flowPulseISR, RISING);
+    }
     flowLastCalc = millis();
 
     connectWiFi();
@@ -166,6 +169,7 @@ void probeServerConnectivity() {
 //  Read flow rate from YF-S201 (L/min)
 // ─────────────────────────────────────────────────────────────
 float readFlowRate() {
+    if (FLOW_PIN < 0) return 0.0f;  // flow sensor not connected
     unsigned long now     = millis();
     unsigned long elapsed = now - flowLastCalc;
     if (elapsed == 0) return flowRate_lpm;
