@@ -120,25 +120,9 @@ SELECT name, crop, crop_icon, status FROM (
 WHERE (SELECT COUNT(*) FROM fields) = 0;
 
 -- ──────────────────────────────────────────────
--- Seed data — Sample sensor readings (only if table is empty)
+-- Seed data — Sample sensor readings intentionally omitted.
+-- Real data is posted by ESP32 hardware only.
 -- ──────────────────────────────────────────────
-INSERT INTO sensor_readings (field_id, moisture, temperature, humidity, water_flow, recorded_at)
-SELECT
-  1,
-  50 + (RAND() * 10 - 5),
-  26 + (RAND() * 4 - 2),
-  60 + (RAND() * 10 - 5),
-  0,
-  DATE_SUB(NOW(), INTERVAL seq HOUR)
-FROM (
-  SELECT 0 AS seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3
-  UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7
-  UNION SELECT 8 UNION SELECT 9 UNION SELECT 10 UNION SELECT 11
-  UNION SELECT 12 UNION SELECT 13 UNION SELECT 14 UNION SELECT 15
-  UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19
-  UNION SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23
-) AS hours
-WHERE (SELECT COUNT(*) FROM sensor_readings) = 0;
 
 -- ──────────────────────────────────────────────
 -- Seed data — Sample alerts  (only if table is empty)

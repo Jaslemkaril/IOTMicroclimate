@@ -57,10 +57,29 @@ async function initDatabase({ silent = false } = {}) {
           ('Plant-C', 'Sensor 3', 'fa-cannabis', 'healthy'),
           ('Plant-D', 'Sensor 4', 'fa-spa',      'healthy')
       `);
-      // Clear recent seed readings so ESP32 badge correctly shows Offline
-      // until a real ESP32 actually posts data.
-      await conn.query(`DELETE FROM sensor_readings WHERE recorded_at > NOW() - INTERVAL 2 HOUR`);
+      // Clear ALL seed readings so no fake data appears on the dashboard.
+      // Real data only comes in once an actual ESP32 starts posting.
+      await conn.query(`DELETE FROM sensor_readings WHERE field_id IN (1,2,3,4)`);
+      await conn.query(`DELETE FROM alerts WHERE title = 'System Ready'`);
       if (!silent) console.log('✅ 4 plant fields ready: Plant-A, Plant-B, Plant-C, Plant-D');
+    }
+
+    // ── Purge leftover seed readings ─────────────────────────
+    // The schema seeds exactly 24 hourly rows with water_flow = 0.
+    // Real ESP32 data posts every 10s so it quickly exceeds 24 rows.
+    // If a field has exactly 24 rows and all have water_flow = 0,
+    // it's still the seed data — wipe it.
+    const [seedCheck] = await conn.query(`
+      SELECT field_id, COUNT(*) AS cnt,
+             SUM(CASE WHEN water_flow = 0 OR water_flow IS NULL THEN 1 ELSE 0 END) AS zero_flow
+      FROM sensor_readings
+      GROUP BY field_id
+      HAVING cnt = zero_flow AND cnt <= 24
+    `);
+    if (seedCheck.length > 0) {
+      const ids = seedCheck.map(r => r.field_id);
+      await conn.query(`DELETE FROM sensor_readings WHERE field_id IN (?)`, [ids]);
+      if (!silent) console.log(`🧹 Purged seed readings for field_id(s): ${ids.join(', ')}`);
     }
 
     return true;
