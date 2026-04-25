@@ -228,7 +228,7 @@ router.get('/esp32-status', async (req, res) => {
       return res.json({ success: true, connected: false, lastSeen: null, secondsAgo: null });
     }
     const secondsAgo = rows[0].seconds_ago;
-    const connected  = secondsAgo <= 90;
+    const connected  = secondsAgo <= 30;  // must have posted within last 30s
     res.json({ success: true, connected, lastSeen: rows[0].recorded_at, secondsAgo });
   } catch (err) {
     console.error('GET /api/sensors/esp32-status error:', err.message);

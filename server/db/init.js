@@ -57,6 +57,9 @@ async function initDatabase({ silent = false } = {}) {
           ('Plant-C', 'Sensor 3', 'fa-cannabis', 'healthy'),
           ('Plant-D', 'Sensor 4', 'fa-spa',      'healthy')
       `);
+      // Clear recent seed readings so ESP32 badge correctly shows Offline
+      // until a real ESP32 actually posts data.
+      await conn.query(`DELETE FROM sensor_readings WHERE recorded_at > NOW() - INTERVAL 2 HOUR`);
       if (!silent) console.log('✅ 4 plant fields ready: Plant-A, Plant-B, Plant-C, Plant-D');
     }
 
