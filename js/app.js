@@ -833,7 +833,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: on ? 'on' : 'off', mode: activeMode, field_id: 1 })
-            }).catch(err => console.warn('Pump API call failed:', err.message));
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    console.log(`✅ Pump ${on ? 'ON' : 'OFF'} command sent successfully`);
+                } else {
+                    console.error('❌ Pump toggle failed:', data.error);
+                }
+            })
+            .catch(err => {
+                console.warn('❌ Pump API call failed:', err.message);
+            });
         }
 
         // Track water usage counter when pump is on

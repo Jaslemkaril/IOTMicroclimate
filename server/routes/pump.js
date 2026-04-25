@@ -53,6 +53,7 @@ async function calcWaterUsed(startedAt) {
 router.get('/status', async (req, res) => {
   try {
     const state = await loadState();
+    console.log(`[PUMP] Status check: on=${state.on}, mode=${state.mode}`);
     res.json({ success: true, data: state });
   } catch (err) {
     console.error('GET /api/pump/status error:', err.message);
@@ -99,6 +100,8 @@ router.post('/toggle', async (req, res) => {
       mode,
       startedAt: newStartedAt ? newStartedAt.toISOString() : null
     };
+    
+    console.log(`[PUMP] Toggle: action=${action}, desiredOn=${desiredOn}, mode=${mode}, waterUsed=${waterUsed}L`);
     res.json({ success: true, data: newState });
   } catch (err) {
     console.error('POST /api/pump/toggle error:', err.message);
