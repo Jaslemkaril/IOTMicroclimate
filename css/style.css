@@ -2118,16 +2118,6 @@ button {
     /* Table: hide less-critical columns */
     .data-table .col-hide-sm { display: none; }
 
-    /* Field table responsive — stack actions */
-    .field-actions-cell { flex-direction: column; gap: 4px; }
-    .field-actions-cell .btn-xs,
-    .field-actions-cell .btn-edit { width: 100%; text-align: center; justify-content: center; }
-
-    /* Field table — make name column not overflow */
-    #fieldTable td:first-child { max-width: 80px; word-break: break-word; font-size: 12px; }
-    #fieldTable td { font-size: 12px; padding: 8px 6px; }
-    #fieldTable th { font-size: 11px; padding: 8px 6px; }
-
     /* Toast full-width */
     .toast-container { left: 8px; right: 8px; bottom: 16px; }
     .toast { min-width: unset; width: 100%; }
@@ -4104,3 +4094,103 @@ button {
 ::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ============================================================
+   FIELD TABLE — MOBILE CARD LAYOUT
+   At ≤576px the table becomes a list of cards (one per plant)
+   ============================================================ */
+@media (max-width: 576px) {
+
+    /* Hide the table header — labels are shown inline per cell */
+    #fieldTable thead { display: none; }
+
+    /* Each row becomes a card */
+    #fieldTable tbody tr {
+        display: block;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        margin-bottom: 10px;
+        padding: 12px 14px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* Each cell becomes a flex row: label on left, value on right */
+    #fieldTable tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 0;
+        font-size: 13px;
+        border: none;
+        border-bottom: 1px solid var(--border);
+    }
+    #fieldTable tbody td:last-child { border-bottom: none; }
+
+    /* Inject labels via data-label attribute */
+    #fieldTable tbody td::before {
+        content: attr(data-label);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+        margin-right: 8px;
+    }
+
+    /* Plant name row — bigger and bold */
+    #fieldTable tbody td:first-child {
+        font-size: 15px;
+        font-weight: 700;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 8px;
+        margin-bottom: 2px;
+        max-width: unset;
+    }
+
+    /* Actions cell — full width row of buttons */
+    .field-actions-cell {
+        flex-direction: row;
+        gap: 8px;
+        justify-content: flex-end;
+        padding-top: 8px;
+    }
+    .field-actions-cell .btn-xs,
+    .field-actions-cell .btn-edit {
+        flex: 1;
+        text-align: center;
+        justify-content: center;
+    }
+
+    /* Toast full-width */
+    .toast-container { left: 8px; right: 8px; bottom: 16px; }
+    .toast { min-width: unset; width: 100%; }
+
+    /* Dashboard padding */
+    .sensor-cards   { padding: 12px 12px 0; gap: 12px; }
+    .dashboard-grid { padding: 12px 12px 0; gap: 12px; }
+
+    /* Chart height reduce */
+    .chart-card .card-body { height: 240px; }
+
+    /* Topbar compact */
+    .topbar { padding: 0 12px; gap: 8px; }
+    .search-box { display: none; }
+    .page-title h2 { font-size: 15px; }
+    .breadcrumb { display: none; }
+    .connection-badge { display: none; }
+
+    /* Sensor cards single column */
+    .sensor-cards { grid-template-columns: 1fr; }
+    .hardware-grid { grid-template-columns: 1fr; }
+    .detail-grid  { grid-template-columns: 1fr; }
+
+    /* Card header wraps */
+    .card-header { flex-wrap: wrap; gap: 8px; }
+    .card-header h3 { font-size: 14px; }
+
+    /* Pump stats stack */
+    .pump-stats { flex-direction: column; gap: 12px; align-items: center; }
+    .sensor-value .value { font-size: 28px; }
+}

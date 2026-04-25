@@ -565,16 +565,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const mDisplay = mVal !== null ? mVal : 0;
             const barColor = mDisplay > 65 ? 'bg-orange' : 'bg-green';
             return `<tr data-field-id="${f.id}" data-field-name="${f.name}" data-field-crop="${f.crop || ''}" data-field-icon="${f.crop_icon || 'fa-leaf'}">
-                <td><strong>${f.name}</strong></td>
-                <td><i class="fas ${f.crop_icon || 'fa-leaf'}"></i> ${f.crop || 'N/A'}</td>
-                <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
-                <td>
+                <td data-label="Field"><strong>${f.name}</strong></td>
+                <td data-label="Crop"><i class="fas ${f.crop_icon || 'fa-leaf'}"></i> ${f.crop || 'N/A'}</td>
+                <td data-label="Status"><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                <td data-label="Moisture">
                     <div class="mini-bar"><div class="mini-fill fill-${moisture} ${barColor}"></div></div>
                     <span>${moisture}%</span>
                 </td>
-                <td class="col-hide-sm">${temp}</td>
-                <td class="col-hide-sm">${hum}</td>
-                <td class="field-actions-cell">
+                <td data-label="Temperature" class="col-hide-sm">${temp}</td>
+                <td data-label="Humidity" class="col-hide-sm">${hum}</td>
+                <td data-label="Actions" class="field-actions-cell">
                     <button class="btn btn-xs btn-outline btn-details">Details</button>
                     <button class="btn btn-xs btn-edit" title="Edit plant"><i class="fas fa-pen"></i></button>
                 </td>
