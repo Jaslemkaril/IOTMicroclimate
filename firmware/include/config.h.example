@@ -43,8 +43,13 @@
 
 
 // ────────────────────────────────────────────────────────────
-//  STEP 3 (Optional) — Field ID
-//  Must match a row in the `fields` table (default = 1).
+//  STEP 3 — Field ID (REQUIRED for multi-plant setup)
+//  Each ESP32 must have a unique FIELD_ID matching the database:
+//    1 = Plant-A (Sensor 1)
+//    2 = Plant-B (Sensor 2)
+//    3 = Plant-C (Sensor 3)
+//    4 = Plant-D (Sensor 4)
+//  Flash each ESP32 with a different FIELD_ID before deployment.
 // ────────────────────────────────────────────────────────────
 #define FIELD_ID        1
 
