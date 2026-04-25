@@ -672,8 +672,8 @@ button {
 
 /* Edit button in field table */
 .btn-edit {
-    padding: 4px 8px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 13px;
     background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -681,6 +681,9 @@ button {
     cursor: pointer;
     transition: all 0.2s;
     line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .btn-edit:hover {
     border-color: var(--accent);
@@ -689,9 +692,10 @@ button {
 }
 .field-actions-cell {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .card .btn-outline {
@@ -1198,29 +1202,41 @@ button {
    ============================================================ */
 .table-responsive {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 560px; /* prevents squishing on desktop */
 }
 
 .data-table th {
     text-align: left;
-    padding: 12px 16px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 12px 20px;
+    font-size: 11px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
     color: var(--text-muted);
     border-bottom: 2px solid var(--border);
+    white-space: nowrap;
 }
 
 .data-table td {
-    padding: 14px 16px;
+    padding: 16px 20px;
     font-size: 14px;
     border-bottom: 1px solid var(--border-light);
     vertical-align: middle;
+    white-space: nowrap;
+}
+
+/* Field name column — never wrap */
+.data-table td:first-child {
+    font-weight: 700;
+    font-size: 14px;
+    white-space: nowrap;
+    min-width: 90px;
 }
 
 .data-table tbody tr {
@@ -1271,20 +1287,34 @@ button {
 
 /* Mini Bar */
 .mini-bar {
-    height: 6px;
-    width: 60px;
+    height: 8px;
+    width: 80px;
     background: var(--bg-primary);
-    border-radius: 4px;
+    border-radius: 6px;
     overflow: hidden;
     display: inline-block;
     vertical-align: middle;
-    margin-right: 8px;
+    margin-right: 10px;
+    flex-shrink: 0;
 }
 
 .mini-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: 6px;
     transition: width 1s ease;
+}
+
+/* Moisture cell — bar + value side by side */
+.moisture-cell {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    white-space: nowrap;
+}
+.moisture-cell .moisture-val {
+    font-weight: 600;
+    font-size: 13px;
+    min-width: 36px;
 }
 
 /* ============================================================

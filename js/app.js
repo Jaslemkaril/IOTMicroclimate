@@ -569,8 +569,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td data-label="Crop"><i class="fas ${f.crop_icon || 'fa-leaf'}"></i> ${f.crop || 'N/A'}</td>
                 <td data-label="Status"><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                 <td data-label="Moisture">
-                    <div class="mini-bar"><div class="mini-fill fill-${moisture} ${barColor}"></div></div>
-                    <span>${moisture}%</span>
+                    <div class="moisture-cell">
+                        <div class="mini-bar"><div class="mini-fill fill-${moisture} ${barColor}" style="width:${Math.min(mDisplay,100)}%"></div></div>
+                        <span class="moisture-val">${moisture}%</span>
+                    </div>
                 </td>
                 <td data-label="Temperature" class="col-hide-sm">${temp}</td>
                 <td data-label="Humidity" class="col-hide-sm">${hum}</td>
