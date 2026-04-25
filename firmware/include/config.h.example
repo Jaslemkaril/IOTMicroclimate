@@ -3,90 +3,89 @@
 // ============================================================
 //  TerraSync — Hardware Configuration
 //
-//  BEFORE FLASHING:  Copy this file to config.h and fill in
-//  STEP 1 and STEP 2 below.
-//  Everything else works out of the box for the default
-//  wiring diagram (see SETUP.md).
+//  BEFORE FLASHING:
+//    1. Copy this file to firmware/include/config.h
+//    2. Fill in STEP 1, STEP 2, and STEP 3 below
+//    3. config.h is gitignored — your credentials stay private
 // ============================================================
 
 
 // ────────────────────────────────────────────────────────────
 //  STEP 1 — WiFi Credentials
-//  Enter your router's SSID and password.
 // ────────────────────────────────────────────────────────────
-// ── Home WiFi (uncomment when at home) ──────────────────────
-#define WIFI_SSID     "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
-
-// ── Laptop Hotspot (use for school presentation) ─────────────
-// #define WIFI_SSID       "TerraSync-Demo"
-// #define WIFI_PASSWORD   "terrasync123"
+#define WIFI_SSID       "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
 
 
 // ────────────────────────────────────────────────────────────
-//  STEP 2 — Server IP
-//  Run start.bat on your PC first. It will print the exact
-//  line to paste here, e.g.:
-//    #define SERVER_BASE_URL "http://192.168.1.10:3000"
+//  STEP 2 — Server URL
 //
-//  ⚠ Use YOUR_PC_IP, NOT "localhost" — the ESP32 cannot
-//    reach localhost; it needs the LAN IP shown at startup.
+//  Since the backend is deployed on Railway, use the cloud URL.
+//  No port number needed — Railway handles HTTPS on port 443.
 // ────────────────────────────────────────────────────────────
-// ── Home LAN (uncomment when at home) ────────────────────────
-#define SERVER_BASE_URL "http://YOUR_PC_IP:3000"
+#define SERVER_BASE_URL "https://iotmicroclimate-production.up.railway.app"
 
-// ── Laptop Hotspot — Windows always assigns 192.168.137.1 ────
-// #define SERVER_BASE_URL "http://192.168.137.1:3000"
-
-// ── Railway Cloud (no port needed, HTTPS) ──────────────────
-// #define SERVER_BASE_URL "https://iotmicroclimate-production.up.railway.app"
+// ── Local development only (comment out the Railway line above first) ──
+// #define SERVER_BASE_URL "http://192.168.1.XX:3000"   // home LAN
+// #define SERVER_BASE_URL "http://192.168.137.1:3000"  // laptop hotspot
 
 
 // ────────────────────────────────────────────────────────────
-//  STEP 3 — Field ID (REQUIRED for multi-plant setup)
-//  Each ESP32 must have a unique FIELD_ID matching the database:
-//    1 = Plant-A (Sensor 1)
-//    2 = Plant-B (Sensor 2)
-//    3 = Plant-C (Sensor 3)
-//    4 = Plant-D (Sensor 4)
-//  Flash each ESP32 with a different FIELD_ID before deployment.
+//  STEP 3 — Plant / Field ID
+//
+//  Each ESP32 monitors one plant. Set a unique ID per board:
+//    1 = Plant-A  (Sensor 1)
+//    2 = Plant-B  (Sensor 2)
+//    3 = Plant-C  (Sensor 3)
+//    4 = Plant-D  (Sensor 4)
+//
+//  Flash each ESP32 with a different FIELD_ID.
 // ────────────────────────────────────────────────────────────
 #define FIELD_ID        1
 
 
 // ============================================================
-//  Hardware pin mapping  (default wiring — see SETUP.md)
-//  Only change if you used different GPIO pins.
+//  Hardware Pin Mapping
+//  Only change if you used different GPIO pins than the default
+//  wiring diagram in SETUP.md.
 // ============================================================
 
-// DHT22 — temperature & humidity sensor
+// DHT22 — temperature & humidity
 #define DHT_PIN          4          // GPIO4  — data wire
 #define DHT_TYPE         DHT22      // DHT11 or DHT22
 
 // Capacitive soil moisture sensor
 #define MOISTURE_PIN     34         // GPIO34 — analog out (ADC1 only: 32–39)
 
-// Relay module controlling the water pump
+// Relay module — controls the water pump
 #define PUMP_RELAY_PIN   26         // GPIO26 — relay IN
-#define RELAY_ACTIVE_LOW true       // true = most relay boards; false = active-HIGH
+#define RELAY_ACTIVE_LOW true       // true for most relay boards (active-LOW)
 
-// Flow sensor (YF-S201) — optional, set to -1 if unused
-#define FLOW_PIN         18         // GPIO18 — pulse output (interrupt-capable)
-#define FLOW_CALIBRATION 450.0f     // pulses per litre (YF-S201 ≈ 450)
-
-
-// ============================================================
-//  Timing  (milliseconds)
-// ============================================================
-#define SENSOR_INTERVAL    10000UL  // Send sensor data every 10 s
-#define PUMP_POLL_INTERVAL  5000UL  // Check pump command every  5 s
+// Flow sensor (YF-S201)
+// Set to -1 if you do NOT have a flow sensor connected.
+// Leaving a floating pin connected causes garbage readings.
+#define FLOW_PIN         -1         // -1 = disabled  |  27 = GPIO27 if connected
+#define FLOW_CALIBRATION 450.0f     // pulses per litre (YF-S201 default)
 
 
 // ============================================================
-//  Soil moisture calibration
-//  Hold the sensor in dry air  → note ADC value → MOISTURE_DRY_ADC
-//  Submerge the sensor in water → note ADC value → MOISTURE_WET_ADC
-//  Open Serial Monitor at 115200 baud to read raw ADC values.
+//  Timing
 // ============================================================
-#define MOISTURE_DRY_ADC  3400      // Raw ADC in completely dry air
-#define MOISTURE_WET_ADC   800      // Raw ADC fully submerged in water
+#define SENSOR_INTERVAL    10000UL  // POST sensor data every 10 s
+#define PUMP_POLL_INTERVAL  5000UL  // Poll pump status every  5 s
+
+
+// ============================================================
+//  Soil Moisture Calibration
+//
+//  Default values work out of the box but calibrating gives
+//  accurate 0–100% readings for your specific sensor.
+//
+//  How to calibrate:
+//    1. Open Serial Monitor at 115200 baud
+//    2. Hold sensor in DRY AIR  → note the raw ADC value
+//    3. Submerge sensor in WATER → note the raw ADC value
+//    4. Replace the values below and re-flash
+// ============================================================
+#define MOISTURE_DRY_ADC  3400      // raw ADC reading in dry air
+#define MOISTURE_WET_ADC   800      // raw ADC reading submerged in water
