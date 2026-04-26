@@ -945,12 +945,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Export pump events as CSV
     async function exportPumpCSV() {
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(`${API_BASE}/pump/events?startDate=${today}`);
+            // Prompt user for date (default to today)
+            const dateInput = prompt('Enter date to export (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+            if (!dateInput) return; // User cancelled
+
+            const res = await fetch(`${API_BASE}/pump/events?startDate=${dateInput}`);
             const json = await res.json();
             
-            if (!json.success || !json.data.events.length) {
-                showToast('No pump events found for today', 'warning');
+            if (!json.success) {
+                showToast('Failed to fetch pump events', 'danger');
+                console.error('API error:', json.error);
+                return;
+            }
+
+            if (!json.data.events || json.data.events.length === 0) {
+                showToast(`No pump events found for ${dateInput}`, 'warning');
                 return;
             }
 
@@ -960,7 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 new Date(event.created_at).toLocaleString(),
                 event.action.toUpperCase(),
                 event.mode,
-                event.water_used_l.toFixed(3)
+                parseFloat(event.water_used_l || 0).toFixed(3)
             ]);
 
             let csvContent = headers.join(',') + '\n';
@@ -971,20 +980,24 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add summary at the end
             csvContent += '\n';
             csvContent += `"Total Events","${json.data.totalEvents}"\n`;
+            csvContent += `"ON Events","${json.data.onEvents}"\n`;
+            csvContent += `"OFF Events","${json.data.offEvents}"\n`;
             csvContent += `"Total Water Used (L)","${json.data.totalWaterUsed.toFixed(3)}"\n`;
 
             // Trigger download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `terrasync-pump-data-${today}.csv`;
+            link.download = `terrasync-pump-data-${dateInput}.csv`;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
 
-            showToast('CSV exported successfully', 'success');
+            showToast(`CSV exported: ${json.data.totalEvents} events`, 'success');
         } catch (err) {
             console.error('CSV export error:', err);
-            showToast('Failed to export CSV', 'danger');
+            showToast('Failed to export CSV: ' + err.message, 'danger');
         }
     }
 
