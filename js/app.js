@@ -707,7 +707,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Percentage text
         const pctEl = document.getElementById('tankPct');
-        if (pctEl) pctEl.textContent = pct.toFixed(0) + '%';
+        if (pctEl) pctEl.textContent = pct.toFixed(1) + '%';
 
         // L / capacity text
         const textEl = document.getElementById('tankText');
@@ -727,7 +727,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Usable %
         const usableEl = document.getElementById('tankUsablePct');
-        if (usableEl) usableEl.textContent = (data.usable_percent ?? pct).toFixed(0) + '%';
+        if (usableEl) usableEl.textContent = (data.usable_percent ?? pct).toFixed(1) + '%';
+
+        // Last refill date
+        const lastRefillEl = document.getElementById('tankLastRefill');
+        if (lastRefillEl && data.last_refill) {
+            const refillDate = new Date(data.last_refill);
+            const now = new Date();
+            const diffMs = now - refillDate;
+            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            
+            if (diffDays > 0) {
+                lastRefillEl.textContent = diffDays + ' day' + (diffDays > 1 ? 's' : '') + ' ago';
+            } else if (diffHours > 0) {
+                lastRefillEl.textContent = diffHours + ' hour' + (diffHours > 1 ? 's' : '') + ' ago';
+            } else {
+                lastRefillEl.textContent = 'Just now';
+            }
+        }
 
         // Progress bar
         const fill = document.getElementById('tankFill');
@@ -784,15 +802,52 @@ document.addEventListener('DOMContentLoaded', () => {
             const json = await res.json();
             if (json.success) {
                 waterTotal = parseFloat(json.data.total_liters) || 0;
+                const cycles = parseInt(json.data.cycles) || 0;
                 const waterTotalGal = waterTotal * L_TO_GAL;
+                
                 if (totalWaterEl)  totalWaterEl.textContent  = waterTotal.toFixed(3) + ' L';
                 const galEl = document.getElementById('totalWaterGal');
                 if (galEl) galEl.textContent = waterTotalGal.toFixed(3) + ' gal';
+                
                 // Mirror into tank Used Today rows
                 const usedLEl   = document.getElementById('tankUsedL');
                 const usedGalEl = document.getElementById('tankUsedGal');
+                const cyclesEl  = document.getElementById('tankCycles');
+                
                 if (usedLEl)   usedLEl.textContent   = waterTotal.toFixed(3) + ' L';
                 if (usedGalEl) usedGalEl.textContent = waterTotalGal.toFixed(3) + ' gal';
+                if (cyclesEl)  cyclesEl.textContent  = cycles;
+                
+                // Calculate consumption rate (L/hour)
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const hoursElapsed = (now - startOfDay) / (1000 * 60 * 60);
+                const consumptionRate = hoursElapsed > 0 ? waterTotal / hoursElapsed : 0;
+                
+                const rateEl = document.getElementById('tankConsumptionRate');
+                if (rateEl) rateEl.textContent = consumptionRate.toFixed(2) + ' L/hr';
+                
+                // Calculate estimated time until empty
+                const tankRes = await fetch(API_BASE + '/tank');
+                const tankJson = await tankRes.json();
+                if (tankJson.success && consumptionRate > 0) {
+                    const remaining = parseFloat(tankJson.data.level_liters);
+                    const hoursRemaining = remaining / consumptionRate;
+                    const timeEl = document.getElementById('tankTimeRemaining');
+                    
+                    if (timeEl) {
+                        if (hoursRemaining > 24) {
+                            timeEl.textContent = (hoursRemaining / 24).toFixed(1) + ' days';
+                        } else if (hoursRemaining > 1) {
+                            timeEl.textContent = hoursRemaining.toFixed(1) + ' hours';
+                        } else {
+                            timeEl.textContent = (hoursRemaining * 60).toFixed(0) + ' minutes';
+                        }
+                    }
+                } else {
+                    const timeEl = document.getElementById('tankTimeRemaining');
+                    if (timeEl) timeEl.textContent = '—';
+                }
             }
         } catch { /* silent */ }
     }
