@@ -4264,6 +4264,107 @@ button {
     margin-right: 6px;
 }
 
+/* ========== MULTI-ZONE SOIL MOISTURE ========== */
+.sensor-card-wide {
+    grid-column: span 2;
+}
+
+.moisture-zones {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.zone-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 60px 40px;
+    align-items: center;
+    gap: 12px;
+}
+
+.zone-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.zone-bar-wrap {
+    height: 24px;
+    background: var(--bg-primary);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.zone-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 12px;
+    transition: width 0.8s ease;
+    width: 0%;
+}
+
+.zone-bar.low {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.zone-bar.optimal {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.zone-bar.high {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.zone-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: right;
+}
+
+.zone-status {
+    font-size: 16px;
+    text-align: center;
+}
+
+.zone-summary {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-xs);
+    border-left: 3px solid var(--info);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.zone-summary i {
+    color: var(--info);
+    font-size: 14px;
+}
+
+.zone-summary.warning {
+    border-left-color: var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.zone-summary.warning i {
+    color: var(--warning);
+}
+
+.zone-summary.success {
+    border-left-color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.zone-summary.success i {
+    color: var(--success);
+}
+
 /* Date Comparison Modal */
 .compare-modal {
     display: none;

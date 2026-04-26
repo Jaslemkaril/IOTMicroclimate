@@ -28,7 +28,11 @@ CREATE TABLE IF NOT EXISTS fields (
 CREATE TABLE IF NOT EXISTS sensor_readings (
   id          BIGINT AUTO_INCREMENT PRIMARY KEY,
   field_id    INT           NOT NULL,
-  moisture    DECIMAL(5,2)  DEFAULT NULL,   -- %
+  moisture    DECIMAL(5,2)  DEFAULT NULL,   -- % (average of 4 sensors)
+  moisture_1  DECIMAL(5,2)  DEFAULT NULL,   -- % Zone A (NW)
+  moisture_2  DECIMAL(5,2)  DEFAULT NULL,   -- % Zone B (NE)
+  moisture_3  DECIMAL(5,2)  DEFAULT NULL,   -- % Zone C (SW)
+  moisture_4  DECIMAL(5,2)  DEFAULT NULL,   -- % Zone D (SE)
   temperature DECIMAL(5,2)  DEFAULT NULL,   -- °C
   humidity    DECIMAL(5,2)  DEFAULT NULL,   -- %
   water_flow  DECIMAL(6,2)  DEFAULT NULL,   -- L/min

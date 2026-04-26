@@ -44,6 +44,7 @@ void pollPumpStatus();
 int  readMoisturePercent();
 float readFlowRate();
 void setPump(bool on);
+void setPumpForce(bool on);
 
 // ─────────────────────────────────────────────────────────────
 void setup() {
@@ -52,7 +53,7 @@ void setup() {
 
     // Relay pin — set safe state before anything else
     pinMode(PUMP_RELAY_PIN, OUTPUT);
-    setPump(false);
+    setPumpForce(false); // Force OFF on boot
 
     // DHT22 needs INPUT_PULLUP and ~3s to stabilize after power-on
     pinMode(DHT_PIN, INPUT_PULLUP);
@@ -187,17 +188,17 @@ float readFlowRate() {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Read soil moisture and map to 0-100 %
+//  Read soil moisture from a single sensor and map to 0-100 %
 // ─────────────────────────────────────────────────────────────
-int readMoisturePercent() {
-    int raw = analogRead(MOISTURE_PIN);
+int readMoisturePercent(int pin) {
+    int raw = analogRead(pin);
     // Clamp to calibrated range, then invert (high ADC = dry)
     raw = constrain(raw, MOISTURE_WET_ADC, MOISTURE_DRY_ADC);
     return map(raw, MOISTURE_DRY_ADC, MOISTURE_WET_ADC, 0, 100);
 }
 
 // ─────────────────────────────────────────────────────────────
-//  POST /api/sensors
+//  POST /api/sensors (with 4 moisture sensors)
 // ─────────────────────────────────────────────────────────────
 void postSensorData() {
     float temperature = NAN;
@@ -211,7 +212,14 @@ void postSensorData() {
         Serial.printf("[DHT22] Attempt %u: T=%.1f H=%.1f\n", attempt + 1, temperature, humidity);
     }
 
-    int moisture = readMoisturePercent();
+    // Read all 4 moisture sensors
+    int moisture_1 = readMoisturePercent(MOISTURE_PIN_1);
+    int moisture_2 = readMoisturePercent(MOISTURE_PIN_2);
+    int moisture_3 = readMoisturePercent(MOISTURE_PIN_3);
+    int moisture_4 = readMoisturePercent(MOISTURE_PIN_4);
+
+    // Calculate average
+    int moisture_avg = (moisture_1 + moisture_2 + moisture_3 + moisture_4) / 4;
 
     bool dhtValid = !(isnan(temperature) || isnan(humidity));
     if (!dhtValid) {
@@ -219,13 +227,19 @@ void postSensorData() {
     }
 
     float flow = readFlowRate();
-    Serial.printf("[Sensor] Temp: %.1f°C  Humidity: %.1f%%  Moisture: %d%%  Flow: %.2f L/min\n",
-                  temperature, humidity, moisture, flow);
+    Serial.printf("[Sensor] Temp: %.1f°C  Humidity: %.1f%%  Moisture Avg: %d%%  Flow: %.2f L/min\n",
+                  temperature, humidity, moisture_avg, flow);
+    Serial.printf("[Sensor] Zone A: %d%%  Zone B: %d%%  Zone C: %d%%  Zone D: %d%%\n",
+                  moisture_1, moisture_2, moisture_3, moisture_4);
 
     // Build JSON payload
     JsonDocument doc;
     doc["field_id"]   = FIELD_ID;
-    doc["moisture"]   = moisture;
+    doc["moisture"]   = moisture_avg;
+    doc["moisture_1"] = moisture_1;
+    doc["moisture_2"] = moisture_2;
+    doc["moisture_3"] = moisture_3;
+    doc["moisture_4"] = moisture_4;
     doc["water_flow"] = serialized(String(flow, 2));
     if (dhtValid) {
         doc["temperature"] = serialized(String(temperature, 1));
@@ -284,13 +298,16 @@ void pollPumpStatus() {
 
     int code = http.GET();
     if (code == 200) {
+        String response = http.getString();
+        Serial.printf("[HTTP]  GET /api/pump/status → 200 OK\n");
+        Serial.printf("[HTTP]  Response: %s\n", response.c_str());
+        
         JsonDocument doc;
-        DeserializationError err = deserializeJson(doc, http.getString());
+        DeserializationError err = deserializeJson(doc, response);
         if (!err) {
             bool pumpOn = doc["data"]["on"].as<bool>();
+            Serial.printf("[Pump]  Server says pump should be: %s\n", pumpOn ? "ON" : "OFF");
             setPump(pumpOn);
-            Serial.printf("[Pump]  Status from server: %s\n",
-                          pumpOn ? "ON" : "OFF");
         } else {
             Serial.printf("[Pump]  JSON parse error: %s\n", err.c_str());
         }
@@ -318,4 +335,8 @@ void setPump(bool on) {
 #else
     digitalWrite(PUMP_RELAY_PIN, on ? HIGH : LOW);
 #endif
+}
+
+void setPumpForce(bool on) {
+    setPump(on);
 }

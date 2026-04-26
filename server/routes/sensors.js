@@ -29,16 +29,50 @@ function sensorRateLimit(req, res, next) {
 
 // ────────────────────────────────────────────
 // POST /api/sensors — Receive data from ESP32
-// Body: { field_id, moisture, temperature, humidity, water_flow }
+// Body: { field_id, moisture, moisture_1, moisture_2, moisture_3, moisture_4, temperature, humidity, water_flow }
 // ────────────────────────────────────────────
 router.post('/', sensorRateLimit, async (req, res) => {
   try {
-    const { field_id = 1, moisture, temperature, humidity, water_flow } = req.body;
+    const { 
+      field_id = 1, 
+      moisture,      // Average (for backward compatibility)
+      moisture_1,    // Zone A (NW)
+      moisture_2,    // Zone B (NE)
+      moisture_3,    // Zone C (SW)
+      moisture_4,    // Zone D (SE)
+      temperature, 
+      humidity, 
+      water_flow 
+    } = req.body;
 
-    // ── Validate moisture (required) ──
-    const moisture_f = parseFloat(moisture);
-    if (isNaN(moisture_f) || moisture_f < 0 || moisture_f > 100) {
+    // ── Parse individual moisture sensors ──
+    const m1 = moisture_1 != null ? parseFloat(moisture_1) : null;
+    const m2 = moisture_2 != null ? parseFloat(moisture_2) : null;
+    const m3 = moisture_3 != null ? parseFloat(moisture_3) : null;
+    const m4 = moisture_4 != null ? parseFloat(moisture_4) : null;
+
+    // ── Calculate average moisture (if individual sensors provided) ──
+    let moisture_avg;
+    if (m1 !== null || m2 !== null || m3 !== null || m4 !== null) {
+      const validSensors = [m1, m2, m3, m4].filter(v => v !== null);
+      moisture_avg = validSensors.length > 0 
+        ? validSensors.reduce((sum, v) => sum + v, 0) / validSensors.length
+        : null;
+    } else {
+      // Fallback to single moisture value (backward compatibility)
+      moisture_avg = moisture != null ? parseFloat(moisture) : null;
+    }
+
+    // ── Validate average moisture (required) ──
+    if (moisture_avg === null || isNaN(moisture_avg) || moisture_avg < 0 || moisture_avg > 100) {
       return res.status(400).json({ success: false, error: 'moisture must be 0–100 %' });
+    }
+
+    // ── Validate individual sensors (if provided) ──
+    for (const [val, name] of [[m1, 'moisture_1'], [m2, 'moisture_2'], [m3, 'moisture_3'], [m4, 'moisture_4']]) {
+      if (val !== null && (isNaN(val) || val < 0 || val > 100)) {
+        return res.status(400).json({ success: false, error: `${name} must be 0–100 %` });
+      }
     }
 
     // ── Validate optional fields (null = DHT22 failed / sensor absent) ──
@@ -57,9 +91,9 @@ router.post('/', sensorRateLimit, async (req, res) => {
     }
 
     await pool.execute(
-      `INSERT INTO sensor_readings (field_id, moisture, temperature, humidity, water_flow)
-       VALUES (?, ?, ?, ?, ?)`,
-      [field_id, moisture_f, temperature_f, humidity_f, water_flow_f]
+      `INSERT INTO sensor_readings (field_id, moisture, moisture_1, moisture_2, moisture_3, moisture_4, temperature, humidity, water_flow)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [field_id, moisture_avg, m1, m2, m3, m4, temperature_f, humidity_f, water_flow_f]
     );
 
     // ── Threshold alerts (max one per type per field per hour) ──
@@ -76,17 +110,27 @@ router.post('/', sensorRateLimit, async (req, res) => {
         );
       }
     }
-    if (moisture_f < 30) {
-      const [dup] = await pool.execute(
-        `SELECT id FROM alerts WHERE field_id = ? AND title = 'Low Soil Moisture' AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
-        [field_id]
-      );
-      if (!dup.length) {
-        await pool.execute(
-          `INSERT INTO alerts (field_id, type, title, message)
-           VALUES (?, 'warning', 'Low Soil Moisture', ?)`,
-          [field_id, `Soil moisture dropped to ${moisture_f}% — consider irrigation.`]
+
+    // ── Check each zone for low moisture ──
+    const zones = [
+      { val: m1, name: 'Zone A (NW)' },
+      { val: m2, name: 'Zone B (NE)' },
+      { val: m3, name: 'Zone C (SW)' },
+      { val: m4, name: 'Zone D (SE)' }
+    ];
+    for (const zone of zones) {
+      if (zone.val !== null && zone.val < 30) {
+        const [dup] = await pool.execute(
+          `SELECT id FROM alerts WHERE field_id = ? AND title = ? AND created_at > NOW() - INTERVAL 1 HOUR LIMIT 1`,
+          [field_id, `Low Soil Moisture - ${zone.name}`]
         );
+        if (!dup.length) {
+          await pool.execute(
+            `INSERT INTO alerts (field_id, type, title, message)
+             VALUES (?, 'warning', ?, ?)`,
+            [field_id, `Low Soil Moisture - ${zone.name}`, `${zone.name} moisture dropped to ${zone.val}% — consider irrigation.`]
+          );
+        }
       }
     }
 
@@ -156,6 +200,10 @@ router.get('/history', async (req, res) => {
         SELECT
           DATE_FORMAT(recorded_at, '%H:%i:%s') AS label,
           ROUND(moisture,    1) AS moisture,
+          ROUND(moisture_1,  1) AS moisture_1,
+          ROUND(moisture_2,  1) AS moisture_2,
+          ROUND(moisture_3,  1) AS moisture_3,
+          ROUND(moisture_4,  1) AS moisture_4,
           ROUND(temperature, 1) AS temperature,
           ROUND(humidity,    1) AS humidity,
           ROUND(water_flow,  1) AS water_flow
@@ -194,6 +242,10 @@ router.get('/history', async (req, res) => {
       SELECT
         DATE_FORMAT(recorded_at, '${dateFormat}') AS label,
         ROUND(AVG(moisture),    1) AS moisture,
+        ROUND(AVG(moisture_1),  1) AS moisture_1,
+        ROUND(AVG(moisture_2),  1) AS moisture_2,
+        ROUND(AVG(moisture_3),  1) AS moisture_3,
+        ROUND(AVG(moisture_4),  1) AS moisture_4,
         ROUND(AVG(temperature), 1) AS temperature,
         ROUND(AVG(humidity),    1) AS humidity,
         ROUND(AVG(water_flow),  1) AS water_flow

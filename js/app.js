@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     clearSensorUI();
                     return;
                 }
-                updateSensorUI(d.moisture, d.temperature, d.humidity, d.water_flow);
+                updateSensorUI(d.moisture, d.temperature, d.humidity, d.water_flow, d.moisture_1, d.moisture_2, d.moisture_3, d.moisture_4);
                 const reading = {
                     moisture:    parseFloat(d.moisture),
                     temperature: parseFloat(d.temperature),
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Update sensor card UI with real or simulated values
-    function updateSensorUI(moisture, temperature, humidity, waterFlow) {
+    function updateSensorUI(moisture, temperature, humidity, waterFlow, moisture_1, moisture_2, moisture_3, moisture_4) {
         const moistureEl = document.getElementById('moistureValue');
         const tempEl     = document.getElementById('tempValue');
         const humidityEl = document.getElementById('humidityValue');
@@ -193,7 +193,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        animateGauge('moistureGauge', moisture);
+        // Update multi-zone moisture display
+        updateMoistureZones(moisture_1, moisture_2, moisture_3, moisture_4);
+
         animateGauge('tempGauge', (temperature / 50) * 100);
         animateGauge('humidityGauge', humidity);
         animateGauge('flowGauge', Math.min((flowNum / 30) * 100, 100));
@@ -206,6 +208,92 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'flex';
         });
+    }
+
+    // Update multi-zone moisture display
+    function updateMoistureZones(m1, m2, m3, m4) {
+        const zones = [
+            { value: m1, bar: 'zoneBar1', text: 'zoneValue1', status: 'zoneStatus1' },
+            { value: m2, bar: 'zoneBar2', text: 'zoneValue2', status: 'zoneStatus2' },
+            { value: m3, bar: 'zoneBar3', text: 'zoneValue3', status: 'zoneStatus3' },
+            { value: m4, bar: 'zoneBar4', text: 'zoneValue4', status: 'zoneStatus4' }
+        ];
+
+        let lowCount = 0;
+        let validCount = 0;
+
+        zones.forEach(zone => {
+            const val = parseFloat(zone.value);
+            const barEl = document.getElementById(zone.bar);
+            const textEl = document.getElementById(zone.text);
+            const statusEl = document.getElementById(zone.status);
+
+            if (isNaN(val) || val === null) {
+                // No data for this zone
+                if (barEl) {
+                    barEl.style.width = '0%';
+                    barEl.className = 'zone-bar';
+                }
+                if (textEl) textEl.textContent = '—';
+                if (statusEl) statusEl.textContent = '—';
+                return;
+            }
+
+            validCount++;
+
+            // Update bar
+            if (barEl) {
+                barEl.style.width = val + '%';
+                if (val < 40) {
+                    barEl.className = 'zone-bar low';
+                    lowCount++;
+                } else if (val >= 40 && val <= 60) {
+                    barEl.className = 'zone-bar optimal';
+                } else {
+                    barEl.className = 'zone-bar high';
+                }
+            }
+
+            // Update value
+            if (textEl) {
+                textEl.textContent = val.toFixed(0) + '%';
+                flashValue(textEl);
+            }
+
+            // Update status icon
+            if (statusEl) {
+                if (val < 40) {
+                    statusEl.textContent = '⚠️';
+                    statusEl.title = 'Low moisture';
+                } else if (val >= 40 && val <= 60) {
+                    statusEl.textContent = '✓';
+                    statusEl.title = 'Optimal';
+                } else {
+                    statusEl.textContent = '⚡';
+                    statusEl.title = 'High moisture';
+                }
+            }
+        });
+
+        // Update summary
+        const summaryEl = document.getElementById('zoneSummary');
+        if (summaryEl && validCount > 0) {
+            if (lowCount === 0) {
+                summaryEl.className = 'zone-summary success';
+                summaryEl.innerHTML = '<i class="fas fa-check-circle"></i><span>All zones optimal — no irrigation needed</span>';
+            } else if (lowCount === validCount) {
+                summaryEl.className = 'zone-summary warning';
+                summaryEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>All zones need water — start irrigation immediately</span>';
+            } else {
+                summaryEl.className = 'zone-summary warning';
+                const zoneNames = [];
+                if (parseFloat(m1) < 40) zoneNames.push('A');
+                if (parseFloat(m2) < 40) zoneNames.push('B');
+                if (parseFloat(m3) < 40) zoneNames.push('C');
+                if (parseFloat(m4) < 40) zoneNames.push('D');
+                summaryEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i><span>${lowCount} zone${lowCount > 1 ? 's' : ''} need attention — irrigate Zone${zoneNames.length > 1 ? 's' : ''} ${zoneNames.join(', ')}</span>`;
+            }
+        }
     }
 
     // Flash value element briefly on live update
