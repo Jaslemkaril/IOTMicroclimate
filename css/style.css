@@ -960,7 +960,7 @@ button {
    CHART + CONTROLS
    ============================================================ */
 .chart-card .card-body {
-    height: 300px;
+    height: 220px;
     padding: 16px 24px 24px;
 }
 
@@ -2170,7 +2170,7 @@ button {
     .dashboard-grid { padding: 12px 12px 0; gap: 12px; }
 
     /* Chart height reduce */
-    .chart-card .card-body { height: 240px; }
+    .chart-card .card-body { height: 200px; }
 }
 
 /* ── 400 px  (very small phones, e.g. iPhone SE) ────────── */
@@ -2199,7 +2199,7 @@ button {
     .card-body    { padding: 16px; }
     .card-header  { padding: 14px 16px; }
 
-    .chart-card .card-body { height: 200px; }
+    .chart-card .card-body { height: 180px; }
 
     .pump-ring { width: 100px; height: 100px; }
     .pump-icon-wrap { width: 50px; height: 50px; font-size: 20px; }
@@ -4215,7 +4215,7 @@ button {
     .dashboard-grid { padding: 12px 12px 0; gap: 12px; }
 
     /* Chart height reduce */
-    .chart-card .card-body { height: 240px; }
+    .chart-card .card-body { height: 200px; }
 
     /* Topbar compact */
     .topbar { padding: 0 12px; gap: 8px; }
