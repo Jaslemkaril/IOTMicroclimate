@@ -27,6 +27,9 @@ unsigned long lastSensorPost = 0;
 unsigned long lastPumpPoll   = 0;
 unsigned long lastNetProbe   = 0;
 
+// Track last known pump state to detect changes
+bool lastPumpState = false;
+
 // ── Flow sensor (YF-S201) ────────────────────────────────────
 volatile uint32_t flowPulseCount = 0;
 unsigned long     flowLastCalc   = 0;
@@ -316,13 +319,20 @@ void pollPumpStatus() {
     int code = http.GET();
     if (code == 200) {
         String response = http.getString();
-        Serial.printf("[Pump]  Status check → 200 OK\n");
         
         JsonDocument doc;
         DeserializationError err = deserializeJson(doc, response);
         if (!err) {
             bool pumpOn = doc["data"]["on"].as<bool>();
-            Serial.printf("[Pump]  Server says pump should be: %s\n", pumpOn ? "ON" : "OFF");
+            
+            // Only log if state changed (reduce spam)
+            if (pumpOn != lastPumpState) {
+                Serial.printf("[Pump]  State changed: %s → %s\n", 
+                              lastPumpState ? "ON" : "OFF",
+                              pumpOn ? "ON" : "OFF");
+                lastPumpState = pumpOn;
+            }
+            
             setPump(pumpOn);
         } else {
             Serial.printf("[Pump]  JSON parse error: %s\n", err.c_str());
@@ -346,8 +356,16 @@ void pollPumpStatus() {
 void setPump(bool on) {
 #if RELAY_ACTIVE_LOW
     digitalWrite(PUMP_RELAY_PIN, on ? LOW : HIGH);
+    Serial.printf("[Relay] GPIO%d → %s (pump %s)\n", 
+                  PUMP_RELAY_PIN, 
+                  on ? "LOW" : "HIGH",
+                  on ? "ON" : "OFF");
 #else
     digitalWrite(PUMP_RELAY_PIN, on ? HIGH : LOW);
+    Serial.printf("[Relay] GPIO%d → %s (pump %s)\n", 
+                  PUMP_RELAY_PIN, 
+                  on ? "HIGH" : "LOW",
+                  on ? "ON" : "OFF");
 #endif
 }
 
