@@ -54,6 +54,10 @@ async function start() {
   try {
     await initDatabase({ silent: true });
     console.log('✅ Database ready.');
+    
+    // Run migrations automatically
+    const { runMigrations } = require('./db/migrate');
+    await runMigrations();
   } catch (err) {
     console.error('⚠️  Database connection failed:', err.message);
     console.error('   → Make sure MySQL is running (XAMPP → Start MySQL)');
