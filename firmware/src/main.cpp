@@ -253,7 +253,7 @@ void postSensorData() {
     String payload;
     serializeJson(doc, payload);
 
-    // HTTP POST
+    // HTTP POST with timeout for slow connections
     HTTPClient http;
     String url = String(SERVER_BASE_URL) + "/api/sensors";
     if (url.startsWith("https://")) {
@@ -263,18 +263,34 @@ void postSensorData() {
         http.begin(url);
     }
     http.addHeader("Content-Type", "application/json");
+    http.setTimeout(15000);  // 15 second timeout for slow connections
 
+    Serial.println("[HTTP]  Sending sensor data...");
     int code = http.POST(payload);
     if (code == 201) {
-        Serial.println("[HTTP]  POST /api/sensors → 201 Created");
+        Serial.println("[HTTP]  POST /api/sensors → 201 Created ✓");
     } else {
         if (code < 0) {
-            Serial.printf("[HTTP]  POST /api/sensors → %d (%s)  url=%s  wifi=%d  ip=%s\n",
+            Serial.printf("[HTTP]  POST /api/sensors → %d (%s)\n",
                           code,
-                          HTTPClient::errorToString(code).c_str(),
+                          HTTPClient::errorToString(code).c_str());
+            Serial.printf("[HTTP]  URL: %s  WiFi: %d  IP: %s  RSSI: %d dBm\n",
                           url.c_str(),
                           (int)WiFi.status(),
-                          WiFi.localIP().toString().c_str());
+                          WiFi.localIP().toString().c_str(),
+                          WiFi.RSSI());
+            
+            // Retry once on timeout
+            if (code == HTTPC_ERROR_READ_TIMEOUT || code == HTTPC_ERROR_CONNECTION_LOST) {
+                Serial.println("[HTTP]  Retrying due to slow connection...");
+                delay(2000);
+                code = http.POST(payload);
+                if (code == 201) {
+                    Serial.println("[HTTP]  Retry successful ✓");
+                } else {
+                    Serial.printf("[HTTP]  Retry failed → %d\n", code);
+                }
+            }
         } else {
             Serial.printf("[HTTP]  POST /api/sensors → %d  %s\n",
                           code, http.getString().c_str());
@@ -295,12 +311,12 @@ void pollPumpStatus() {
     } else {
         http.begin(url);
     }
+    http.setTimeout(10000);  // 10 second timeout for slow connections
 
     int code = http.GET();
     if (code == 200) {
         String response = http.getString();
-        Serial.printf("[HTTP]  GET /api/pump/status → 200 OK\n");
-        Serial.printf("[HTTP]  Response: %s\n", response.c_str());
+        Serial.printf("[Pump]  Status check → 200 OK\n");
         
         JsonDocument doc;
         DeserializationError err = deserializeJson(doc, response);
@@ -313,14 +329,12 @@ void pollPumpStatus() {
         }
     } else {
         if (code < 0) {
-            Serial.printf("[HTTP]  GET /api/pump/status → %d (%s)  url=%s  wifi=%d  ip=%s\n",
+            Serial.printf("[Pump]  Status check → %d (%s)  RSSI: %d dBm\n",
                           code,
                           HTTPClient::errorToString(code).c_str(),
-                          url.c_str(),
-                          (int)WiFi.status(),
-                          WiFi.localIP().toString().c_str());
+                          WiFi.RSSI());
         } else {
-            Serial.printf("[HTTP]  GET /api/pump/status → %d\n", code);
+            Serial.printf("[Pump]  Status check → %d\n", code);
         }
     }
     http.end();
