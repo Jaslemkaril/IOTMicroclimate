@@ -852,6 +852,215 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch { /* silent */ }
     }
 
+    // ========== CSV/PNG EXPORT & DATE COMPARISON ==========
+
+    // Export pump events as CSV
+    async function exportPumpCSV() {
+        try {
+            const today = new Date().toISOString().split('T')[0];
+            const res = await fetch(`${API_BASE}/pump/events?startDate=${today}`);
+            const json = await res.json();
+            
+            if (!json.success || !json.data.events.length) {
+                showToast('No pump events found for today', 'warning');
+                return;
+            }
+
+            // Build CSV content
+            const headers = ['Date/Time', 'Action', 'Mode', 'Water Used (L)'];
+            const rows = json.data.events.map(event => [
+                new Date(event.created_at).toLocaleString(),
+                event.action.toUpperCase(),
+                event.mode,
+                event.water_used_l.toFixed(3)
+            ]);
+
+            let csvContent = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
+            });
+
+            // Add summary at the end
+            csvContent += '\n';
+            csvContent += `"Total Events","${json.data.totalEvents}"\n`;
+            csvContent += `"Total Water Used (L)","${json.data.totalWaterUsed.toFixed(3)}"\n`;
+
+            // Trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `terrasync-pump-data-${today}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+
+            showToast('CSV exported successfully', 'success');
+        } catch (err) {
+            console.error('CSV export error:', err);
+            showToast('Failed to export CSV', 'danger');
+        }
+    }
+
+    // Export chart as PNG
+    function exportChartPNG() {
+        try {
+            if (!trendChart) {
+                showToast('Chart not available', 'warning');
+                return;
+            }
+
+            // Get chart canvas and convert to image
+            const canvas = trendChart.canvas;
+            const url = canvas.toDataURL('image/png');
+            
+            // Trigger download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `terrasync-chart-${new Date().toISOString().split('T')[0]}.png`;
+            link.click();
+
+            showToast('Chart exported as PNG', 'success');
+        } catch (err) {
+            console.error('PNG export error:', err);
+            showToast('Failed to export PNG', 'danger');
+        }
+    }
+
+    // Compare water consumption between two dates
+    async function compareDates(date1, date2) {
+        try {
+            if (!date1 || !date2) {
+                showToast('Please select both dates', 'warning');
+                return;
+            }
+
+            // Fetch data for both dates
+            const [res1, res2] = await Promise.all([
+                fetch(`${API_BASE}/pump/events?startDate=${date1}`),
+                fetch(`${API_BASE}/pump/events?startDate=${date2}`)
+            ]);
+
+            const [json1, json2] = await Promise.all([res1.json(), res2.json()]);
+
+            if (!json1.success || !json2.success) {
+                showToast('Failed to fetch comparison data', 'danger');
+                return;
+            }
+
+            const data1 = json1.data;
+            const data2 = json2.data;
+
+            // Calculate differences
+            const waterDiff = data1.totalWaterUsed - data2.totalWaterUsed;
+            const eventsDiff = data1.totalEvents - data2.totalEvents;
+            const cyclesDiff = data1.offEvents - data2.offEvents;
+
+            // Display results
+            const resultDiv = document.getElementById('comparisonResult');
+            const statsDiv = document.getElementById('comparisonStats');
+
+            if (resultDiv && statsDiv) {
+                statsDiv.innerHTML = `
+                    <div class="comparison-stat">
+                        <span class="comparison-stat-label">${date1} Water Used</span>
+                        <div class="comparison-stat-value">${data1.totalWaterUsed.toFixed(3)} L</div>
+                    </div>
+                    <div class="comparison-stat">
+                        <span class="comparison-stat-label">${date2} Water Used</span>
+                        <div class="comparison-stat-value">${data2.totalWaterUsed.toFixed(3)} L</div>
+                    </div>
+                    <div class="comparison-stat">
+                        <span class="comparison-stat-label">Difference</span>
+                        <div class="comparison-stat-value">${Math.abs(waterDiff).toFixed(3)} L</div>
+                        <div class="comparison-stat-diff ${waterDiff > 0 ? 'positive' : 'negative'}">
+                            <i class="fas fa-arrow-${waterDiff > 0 ? 'up' : 'down'}"></i>
+                            ${waterDiff > 0 ? 'More' : 'Less'} than ${date2}
+                        </div>
+                    </div>
+                    <div class="comparison-stat">
+                        <span class="comparison-stat-label">Pump Cycles</span>
+                        <div class="comparison-stat-value">${data1.offEvents} vs ${data2.offEvents}</div>
+                        <div class="comparison-stat-diff ${cyclesDiff > 0 ? 'positive' : 'negative'}">
+                            ${Math.abs(cyclesDiff)} ${cyclesDiff > 0 ? 'more' : 'fewer'} cycles
+                        </div>
+                    </div>
+                `;
+                resultDiv.style.display = 'block';
+            }
+
+            showToast('Comparison complete', 'success');
+        } catch (err) {
+            console.error('Date comparison error:', err);
+            showToast('Failed to compare dates', 'danger');
+        }
+    }
+
+    // Toast notification helper
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'danger' ? 'times-circle' : 'info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        container.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => toast.classList.add('show'), 10);
+
+        // Remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Event listeners for export/comparison buttons
+    document.getElementById('exportCSV')?.addEventListener('click', exportPumpCSV);
+    document.getElementById('exportPNG')?.addEventListener('click', exportChartPNG);
+    
+    const compareBtn = document.getElementById('compareBtn');
+    const compareModal = document.getElementById('compareModal');
+    const compareClose = document.getElementById('compareClose');
+    const runComparison = document.getElementById('runComparison');
+
+    compareBtn?.addEventListener('click', () => {
+        compareModal?.classList.add('show');
+        // Set default dates (today and yesterday)
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        const date1Input = document.getElementById('compareDate1');
+        const date2Input = document.getElementById('compareDate2');
+        if (date1Input) date1Input.value = today.toISOString().split('T')[0];
+        if (date2Input) date2Input.value = yesterday.toISOString().split('T')[0];
+        
+        // Hide previous results
+        const resultDiv = document.getElementById('comparisonResult');
+        if (resultDiv) resultDiv.style.display = 'none';
+    });
+
+    compareClose?.addEventListener('click', () => {
+        compareModal?.classList.remove('show');
+    });
+
+    compareModal?.addEventListener('click', (e) => {
+        if (e.target === compareModal) {
+            compareModal.classList.remove('show');
+        }
+    });
+
+    runComparison?.addEventListener('click', () => {
+        const date1 = document.getElementById('compareDate1')?.value;
+        const date2 = document.getElementById('compareDate2')?.value;
+        compareDates(date1, date2);
+    });
+
+    // ========== END CSV/PNG EXPORT & DATE COMPARISON ==========
+
     function setPumpState(on) {
         pumpOn = on;
         pumpRing?.classList.toggle('active', on);

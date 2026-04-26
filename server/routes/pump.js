@@ -127,4 +127,48 @@ router.get('/today', async (req, res) => {
   }
 });
 
+// ────────────────────────────────────────────
+// GET /api/pump/events — Pump events by date range
+// Query params: startDate, endDate (YYYY-MM-DD format)
+// ────────────────────────────────────────────
+router.get('/events', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate) {
+      return res.status(400).json({ success: false, error: 'startDate is required' });
+    }
+
+    // If no endDate provided, use startDate (single day query)
+    const end = endDate || startDate;
+
+    const [rows] = await pool.query(`
+      SELECT 
+        id,
+        field_id,
+        action,
+        mode,
+        water_used_l,
+        created_at
+      FROM pump_events
+      WHERE DATE(created_at) >= ? AND DATE(created_at) <= ?
+      ORDER BY created_at ASC
+    `, [startDate, end]);
+
+    // Calculate summary stats
+    const summary = {
+      totalEvents: rows.length,
+      onEvents: rows.filter(r => r.action === 'on').length,
+      offEvents: rows.filter(r => r.action === 'off').length,
+      totalWaterUsed: rows.reduce((sum, r) => sum + (parseFloat(r.water_used_l) || 0), 0),
+      events: rows
+    };
+
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    console.error('GET /api/pump/events error:', err.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

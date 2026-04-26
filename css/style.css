@@ -1935,6 +1935,7 @@ button {
 .toast.toast-warning { border-left: 4px solid var(--warning); }
 .toast.toast-info    { border-left: 4px solid var(--info); }
 .toast.toast-error   { border-left: 4px solid var(--danger); }
+.toast.toast-danger  { border-left: 4px solid var(--danger); }
 
 .toast i {
     font-size: 16px;
@@ -1945,6 +1946,18 @@ button {
 .toast.toast-warning i { color: var(--warning); }
 .toast.toast-info i    { color: var(--info); }
 .toast.toast-error i   { color: var(--danger); }
+.toast.toast-danger i  { color: var(--danger); }
+
+.toast {
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
 
 .toast-close {
     margin-left: auto;
@@ -4223,4 +4236,155 @@ button {
     /* Pump stats stack */
     .pump-stats { flex-direction: column; gap: 12px; align-items: center; }
     .sensor-value .value { font-size: 28px; }
+}
+
+
+/* ========== PUMP TOOLS (Export & Analysis) ========== */
+.pump-tools {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.tool-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tool-buttons .btn {
+    flex: 1;
+    min-width: 120px;
+    font-size: 13px;
+}
+
+.tool-buttons .btn i {
+    margin-right: 6px;
+}
+
+/* Date Comparison Modal */
+.compare-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.compare-modal.show {
+    display: flex;
+}
+
+.compare-content {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.compare-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.compare-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.compare-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.date-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.date-input-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.date-input-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    font-size: 14px;
+}
+
+.comparison-result {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-sm);
+}
+
+.comparison-result h4 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+}
+
+.comparison-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.comparison-stat {
+    padding: 12px;
+    background: var(--surface);
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border);
+}
+
+.comparison-stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.comparison-stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.comparison-stat-diff {
+    font-size: 13px;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.comparison-stat-diff.positive {
+    color: var(--danger);
+}
+
+.comparison-stat-diff.negative {
+    color: var(--success);
 }
