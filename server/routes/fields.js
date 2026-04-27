@@ -79,17 +79,17 @@ router.post('/', async (req, res) => {
 
 // ────────────────────────────────────────────
 // PUT /api/fields/:id — Update a field
-// Body: { name, crop, crop_icon }
+// Body: { name, crop, crop_icon, zone_sensor }
 // ────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, crop, crop_icon } = req.body;
+    const { name, crop, crop_icon, zone_sensor } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
 
     const [result] = await pool.execute(
-      `UPDATE fields SET name = ?, crop = ?, crop_icon = ? WHERE id = ?`,
-      [name, crop || null, crop_icon || 'fa-leaf', id]
+      `UPDATE fields SET name = ?, crop = ?, crop_icon = ?, zone_sensor = ? WHERE id = ?`,
+      [name, crop || null, crop_icon || 'fa-leaf', zone_sensor || null, id]
     );
 
     if (result.affectedRows === 0)
@@ -98,6 +98,28 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('PUT /api/fields/:id error:', err.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// ────────────────────────────────────────────
+// DELETE /api/fields/:id — Delete a field
+// ────────────────────────────────────────────
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [result] = await pool.execute(
+      `DELETE FROM fields WHERE id = ?`,
+      [id]
+    );
+
+    if (result.affectedRows === 0)
+      return res.status(404).json({ success: false, error: 'Field not found' });
+
+    res.json({ success: true, message: 'Field deleted successfully' });
+  } catch (err) {
+    console.error('DELETE /api/fields/:id error:', err.message);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

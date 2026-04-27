@@ -542,6 +542,7 @@
                                 <tr>
                                     <th>Field</th>
                                     <th>Crop</th>
+                                    <th>Sensor</th>
                                     <th>Status</th>
                                     <th>Moisture</th>
                                     <th class="col-hide-sm">Temperature</th>
@@ -551,7 +552,7 @@
                             </thead>
                             <tbody id="fieldTableBody">
                                 <tr class="empty-row">
-                                    <td colspan="7" class="empty-td"><i class="fas fa-seedling empty-icon"></i>No fields yet — click <strong>+ Add Field</strong> to get started.</td>
+                                    <td colspan="8" class="empty-td"><i class="fas fa-seedling empty-icon"></i>No fields yet — click <strong>+ Add Field</strong> to get started.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -767,6 +768,17 @@
                             <option value="fa-wheat-awn">🌾 Wheat/Corn</option>
                             <option value="fa-apple-whole">🍎 Fruit</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editZoneSensor">Assigned Sensor Zone</label>
+                        <select id="editZoneSensor">
+                            <option value="">Not assigned</option>
+                            <option value="1">🌱 Zone A (NW) - GPIO34</option>
+                            <option value="2">🌿 Zone B (NE) - GPIO35</option>
+                            <option value="3">🍃 Zone C (SW) - GPIO32</option>
+                            <option value="4">🌾 Zone D (SE) - GPIO33</option>
+                        </select>
+                        <small style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">Select which moisture sensor this field should use</small>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn btn-outline" data-close-modal="editFieldModal">Cancel</button>

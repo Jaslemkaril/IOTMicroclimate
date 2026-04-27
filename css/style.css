@@ -650,6 +650,18 @@ button {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
+.btn-danger {
+    background: #ef4444;
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+}
+
 .btn-outline {
     border: 1.5px solid rgba(255,255,255,0.4);
     color: white;

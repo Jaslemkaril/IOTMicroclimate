@@ -625,13 +625,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const tbody = document.querySelector('#fieldTable tbody');
         if (!tbody) return;
         if (fields.length === 0) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-seedling" style="margin-right:8px;"></i>No fields yet \u2014 click <strong>+ Add Field</strong> to get started.</td></tr>';
+            tbody.innerHTML = '<tr class="empty-row"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-muted);"><i class="fas fa-seedling" style="margin-right:8px;"></i>No fields yet \u2014 click <strong>+ Add Field</strong> to get started.</td></tr>';
             return;
         }
         tbody.innerHTML = fields.map(f => {
             const moisture = f.moisture !== null ? parseFloat(f.moisture).toFixed(0) : '\u2014';
             const temp     = f.temperature !== null ? parseFloat(f.temperature).toFixed(1) + '\u00b0C' : '\u2014';
             const hum      = f.humidity    !== null ? parseFloat(f.humidity).toFixed(0) + '%' : '\u2014';
+
+            // Map zone_sensor to zone name and GPIO
+            const zoneMap = {
+                1: { name: 'Zone A (NW)', gpio: 'GPIO34', icon: '🌱' },
+                2: { name: 'Zone B (NE)', gpio: 'GPIO35', icon: '🌿' },
+                3: { name: 'Zone C (SW)', gpio: 'GPIO32', icon: '🍃' },
+                4: { name: 'Zone D (SE)', gpio: 'GPIO33', icon: '🌾' }
+            };
+            const zone = f.zone_sensor ? zoneMap[f.zone_sensor] : null;
+            const sensorDisplay = zone 
+                ? `<span style="display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">${zone.icon}</span><span style="font-size:12px;color:var(--text-muted);">${zone.name}<br/><code style="font-size:10px;background:var(--bg-secondary);padding:2px 4px;border-radius:3px;">${zone.gpio}</code></span></span>`
+                : '<span style="color:var(--text-muted);font-size:12px;">Not assigned</span>';
 
             // Derive status from actual sensor values
             const tVal = f.temperature !== null ? parseFloat(f.temperature) : null;
@@ -652,9 +664,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const mDisplay = mVal !== null ? mVal : 0;
             const barColor = mDisplay > 65 ? 'bg-orange' : 'bg-green';
-            return `<tr data-field-id="${f.id}" data-field-name="${f.name}" data-field-crop="${f.crop || ''}" data-field-icon="${f.crop_icon || 'fa-leaf'}">
+            return `<tr data-field-id="${f.id}" data-field-name="${f.name}" data-field-crop="${f.crop || ''}" data-field-icon="${f.crop_icon || 'fa-leaf'}" data-zone-sensor="${f.zone_sensor || ''}">
                 <td data-label="Field"><strong>${f.name}</strong></td>
                 <td data-label="Crop"><i class="fas ${f.crop_icon || 'fa-leaf'}"></i> ${f.crop || 'N/A'}</td>
+                <td data-label="Sensor">${sensorDisplay}</td>
                 <td data-label="Status"><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                 <td data-label="Moisture">
                     <div class="moisture-cell">
@@ -666,7 +679,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td data-label="Humidity" class="col-hide-sm">${hum}</td>
                 <td data-label="Actions" class="field-actions-cell">
                     <button class="btn btn-xs btn-outline btn-details">Details</button>
-                    <button class="btn btn-xs btn-edit" title="Edit plant"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-xs btn-edit" title="Edit field"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-xs btn-danger btn-delete" title="Delete field"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>`;
         }).join('');
@@ -1640,17 +1654,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const row = e.target.closest('tr');
         if (!row) return;
 
+        // ── Delete button ────────────────────────────
+        if (e.target.closest('.btn-delete')) {
+            const fieldId   = row.dataset.fieldId;
+            const fieldName = row.dataset.fieldName;
+            
+            if (confirm(`Are you sure you want to delete "${fieldName}"?\n\nThis will permanently remove the field and all its sensor data.`)) {
+                deleteField(fieldId, fieldName);
+            }
+            return;
+        }
+
         // ── Edit button ──────────────────────────────
         if (e.target.closest('.btn-edit')) {
             const fieldId   = row.dataset.fieldId;
             const fieldName = row.dataset.fieldName;
             const fieldCrop = row.dataset.fieldCrop;
             const fieldIcon = row.dataset.fieldIcon;
+            const zoneSensor = row.dataset.zoneSensor;
 
             document.getElementById('editFieldId').value       = fieldId;
             document.getElementById('editFieldName').value     = fieldName;
             document.getElementById('editFieldCrop').value     = fieldCrop;
             document.getElementById('editFieldIcon').value     = fieldIcon;
+            document.getElementById('editZoneSensor').value    = zoneSensor || '';
             openModal('editFieldModal');
             return;
         }
@@ -1661,10 +1688,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const cells = row.querySelectorAll('td');
         const fieldName = cells[0]?.textContent.trim() || 'Unknown';
         const crop = cells[1]?.textContent.trim() || '—';
-        const status = cells[2]?.textContent.trim() || '—';
-        const moisture = cells[3]?.querySelector('span')?.textContent || '—';
-        const temp = cells[4]?.textContent.trim() || '—';
-        const humidity = cells[5]?.textContent.trim() || '—';
+        const status = cells[3]?.textContent.trim() || '—';
+        const moisture = cells[4]?.querySelector('span')?.textContent || '—';
+        const temp = cells[5]?.textContent.trim() || '—';
+        const humidity = cells[6]?.textContent.trim() || '—';
 
         document.getElementById('detailFieldName').textContent = fieldName;
         document.getElementById('detailMoisture').textContent = moisture;
@@ -1678,13 +1705,32 @@ document.addEventListener('DOMContentLoaded', () => {
         openModal('fieldDetailModal');
     });
 
+    // Delete field function
+    async function deleteField(fieldId, fieldName) {
+        try {
+            const res = await fetch(`${API_BASE}/fields/${fieldId}`, {
+                method: 'DELETE'
+            });
+            const json = await res.json();
+            if (json.success) {
+                showToast(`"${fieldName}" deleted successfully!`, 'success');
+                fetchFieldHealth(); // refresh table
+            } else {
+                showToast('Delete failed: ' + json.error, 'error');
+            }
+        } catch (err) {
+            showToast('API error: ' + err.message, 'error');
+        }
+    }
+
     // ---------- EDIT FIELD FORM SUBMIT ----------
     document.getElementById('editFieldForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id       = document.getElementById('editFieldId').value;
-        const name     = document.getElementById('editFieldName').value.trim();
-        const crop     = document.getElementById('editFieldCrop').value;
-        const cropIcon = document.getElementById('editFieldIcon').value;
+        const id         = document.getElementById('editFieldId').value;
+        const name       = document.getElementById('editFieldName').value.trim();
+        const crop       = document.getElementById('editFieldCrop').value;
+        const cropIcon   = document.getElementById('editFieldIcon').value;
+        const zoneSensor = document.getElementById('editZoneSensor').value;
 
         if (!name) { showToast('Plant name is required', 'warning'); return; }
 
@@ -1692,7 +1738,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const res  = await fetch(`${API_BASE}/fields/${id}`, {
                 method:  'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ name, crop, crop_icon: cropIcon })
+                body:    JSON.stringify({ 
+                    name, 
+                    crop, 
+                    crop_icon: cropIcon,
+                    zone_sensor: zoneSensor ? parseInt(zoneSensor) : null
+                })
             });
             const json = await res.json();
             if (json.success) {
