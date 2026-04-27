@@ -1212,14 +1212,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Track water usage counter when pump is on
+        // Track water usage counter when pump is on (with 3-second delay)
         if (on) {
-            pumpInterval = setInterval(() => {
-                waterTotal += 0.1;
-                if (totalWaterEl) totalWaterEl.textContent = waterTotal.toFixed(1) + ' L';
-            }, 1000);
+            // Start water counter after 3-second delay
+            setTimeout(() => {
+                if (pumpOn) { // Only start if pump is still on
+                    pumpInterval = setInterval(() => {
+                        waterTotal += 0.1;
+                        if (totalWaterEl) totalWaterEl.textContent = waterTotal.toFixed(1) + ' L';
+                    }, 1000);
+                }
+            }, 3000);
 
-            // Pump runtime counter
+            // Pump runtime counter (starts immediately)
             pumpRuntimeSeconds = 0;
             pumpRuntimeInterval = setInterval(() => {
                 pumpRuntimeSeconds++;
