@@ -10,17 +10,25 @@ const pool    = require('../db/connection');
 // ────────────────────────────────────────────
 // GET /api/fields — All fields with latest sensor snapshot
 // Status is computed from live sensor data, not stored statically.
+// Each field maps to a specific zone sensor (moisture_1, moisture_2, moisture_3, or moisture_4)
 // ────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT f.*,
-             sr.moisture, sr.temperature, sr.humidity, sr.water_flow,
+             CASE 
+               WHEN f.zone_sensor = 1 THEN sr.moisture_1
+               WHEN f.zone_sensor = 2 THEN sr.moisture_2
+               WHEN f.zone_sensor = 3 THEN sr.moisture_3
+               WHEN f.zone_sensor = 4 THEN sr.moisture_4
+               ELSE sr.moisture
+             END AS moisture,
+             sr.temperature, sr.humidity, sr.water_flow,
              sr.recorded_at AS last_reading_at,
              TIMESTAMPDIFF(SECOND, sr.recorded_at, NOW()) AS seconds_ago
       FROM fields f
       LEFT JOIN sensor_readings sr ON sr.id = (
-        SELECT MAX(id) FROM sensor_readings WHERE field_id = f.id
+        SELECT MAX(id) FROM sensor_readings WHERE field_id = 1
       )
       ORDER BY f.id
     `);

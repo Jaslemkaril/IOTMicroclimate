@@ -176,7 +176,9 @@ float readFlowRate() {
     if (FLOW_PIN < 0) return 0.0f;  // flow sensor not connected
     unsigned long now     = millis();
     unsigned long elapsed = now - flowLastCalc;
-    if (elapsed == 0) return flowRate_lpm;
+    
+    // Minimum 500ms between calculations to avoid division by very small numbers
+    if (elapsed < 500) return flowRate_lpm;
 
     noInterrupts();
     uint32_t pulses = flowPulseCount;
@@ -186,7 +188,7 @@ float readFlowRate() {
     // L/min = (pulses / elapsed_seconds) / calibration_factor
     flowRate_lpm = (pulses / (elapsed / 1000.0f)) / FLOW_CALIBRATION;
     flowLastCalc = now;
-    Serial.printf("[Flow]  Pulses: %u  Rate: %.2f L/min\n", pulses, flowRate_lpm);
+    Serial.printf("[Flow]  Pulses: %u  Elapsed: %lu ms  Rate: %.2f L/min\n", pulses, elapsed, flowRate_lpm);
     return flowRate_lpm;
 }
 
@@ -195,6 +197,9 @@ float readFlowRate() {
 // ─────────────────────────────────────────────────────────────
 int readMoisturePercent(int pin) {
     int raw = analogRead(pin);
+    // Debug: Print raw ADC value for calibration
+    Serial.printf("[Moisture] Pin %d: Raw ADC = %d\n", pin, raw);
+    
     // Clamp to calibrated range, then invert (high ADC = dry)
     raw = constrain(raw, MOISTURE_WET_ADC, MOISTURE_DRY_ADC);
     return map(raw, MOISTURE_DRY_ADC, MOISTURE_WET_ADC, 0, 100);
@@ -354,6 +359,15 @@ void pollPumpStatus() {
 //  Relay helper
 // ─────────────────────────────────────────────────────────────
 void setPump(bool on) {
+    // Reset flow calculation when pump state changes for instant response
+    if (on != lastPumpState) {
+        noInterrupts();
+        flowPulseCount = 0;
+        interrupts();
+        flowLastCalc = millis();
+        flowRate_lpm = 0.0f;
+    }
+    
 #if RELAY_ACTIVE_LOW
     digitalWrite(PUMP_RELAY_PIN, on ? LOW : HIGH);
     Serial.printf("[Relay] GPIO%d → %s (pump %s)\n", 

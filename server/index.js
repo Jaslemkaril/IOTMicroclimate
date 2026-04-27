@@ -37,6 +37,53 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Migration endpoint (run once to add zone mapping)
+app.post('/api/migrate/zone-mapping', async (req, res) => {
+  try {
+    const pool = require('./db/connection');
+    
+    // Step 1: Add zone_sensor column
+    try {
+      await pool.execute(`
+        ALTER TABLE fields 
+        ADD COLUMN zone_sensor INT DEFAULT NULL 
+        COMMENT 'Maps to moisture_1, moisture_2, moisture_3, or moisture_4'
+      `);
+    } catch (err) {
+      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+    
+    // Step 2: Map fields to zones
+    const zoneMapping = [
+      { id: 1, zone: 1 },  // Mark → Zone A (moisture_1)
+      { id: 2, zone: 2 },  // Collen → Zone B (moisture_2)
+      { id: 3, zone: 3 },  // Jaslem → Zone C (moisture_3)
+      { id: 4, zone: 4 }   // Jas → Zone D (moisture_4)
+    ];
+    
+    for (const mapping of zoneMapping) {
+      await pool.execute(
+        'UPDATE fields SET zone_sensor = ? WHERE id = ?',
+        [mapping.zone, mapping.id]
+      );
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Zone mapping migration completed',
+      mapping: {
+        'Mark (Field 1)': 'Zone A (moisture_1 on GPIO34)',
+        'Collen (Field 2)': 'Zone B (moisture_2 on GPIO35)',
+        'Jaslem (Field 3)': 'Zone C (moisture_3 on GPIO32)',
+        'Jas (Field 4)': 'Zone D (moisture_4 on GPIO33)'
+      }
+    });
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ── Helpers ────────────────────────────────
 function getLanIPs() {
   const ifaces = os.networkInterfaces();
