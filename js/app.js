@@ -1263,12 +1263,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setPumpState(!pumpOn);
     });
 
-    // Live updates — only poll when API is available
+    // Live updates — poll every 1 second for real-time sensor data
     setInterval(() => {
         if (apiAvailable) {
             fetchLatestSensors();
         }
-    }, 5000);
+    }, 1000);
 
     // ---------- FETCH ALERTS FROM API ----------
     async function fetchAlerts() {
