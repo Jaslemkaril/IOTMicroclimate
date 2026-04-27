@@ -59,18 +59,46 @@ router.get('/', async (req, res) => {
 
 // ────────────────────────────────────────────
 // POST /api/fields — Add a new field
-// Body: { name, crop, crop_icon, status }
+// Body: { name, crop, crop_icon }
+// Auto-assigns next available zone (1-4), max 4 fields
 // ────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { name, crop, crop_icon = 'fa-leaf', status = 'healthy' } = req.body;
+    const { name, crop, crop_icon = 'fa-leaf' } = req.body;
     if (!name) return res.status(400).json({ success: false, error: 'name is required' });
 
+    // Check if we already have 4 fields
+    const [existing] = await pool.query('SELECT COUNT(*) as count FROM fields');
+    if (existing[0].count >= 4) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Maximum 4 fields allowed (one per sensor zone)' 
+      });
+    }
+
+    // Find next available zone (1-4)
+    const [usedZones] = await pool.query('SELECT zone_sensor FROM fields WHERE zone_sensor IS NOT NULL');
+    const used = usedZones.map(r => r.zone_sensor);
+    let nextZone = null;
+    for (let i = 1; i <= 4; i++) {
+      if (!used.includes(i)) {
+        nextZone = i;
+        break;
+      }
+    }
+
     const [result] = await pool.execute(
-      `INSERT INTO fields (name, crop, crop_icon, status) VALUES (?, ?, ?, ?)`,
-      [name, crop, crop_icon, status]
+      `INSERT INTO fields (name, crop, crop_icon, zone_sensor) VALUES (?, ?, ?, ?)`,
+      [name, crop, crop_icon, nextZone]
     );
-    res.status(201).json({ success: true, id: result.insertId });
+    
+    const zoneNames = { 1: 'Zone A (NW)', 2: 'Zone B (NE)', 3: 'Zone C (SW)', 4: 'Zone D (SE)' };
+    res.status(201).json({ 
+      success: true, 
+      id: result.insertId,
+      zone_sensor: nextZone,
+      zone_name: zoneNames[nextZone]
+    });
   } catch (err) {
     console.error('POST /api/fields error:', err.message);
     res.status(500).json({ success: false, error: 'Internal server error' });

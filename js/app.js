@@ -1590,7 +1590,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const addFieldModal = document.getElementById('addFieldModal');
     const addFieldForm = document.getElementById('addFieldForm');
 
-    addFieldBtn?.addEventListener('click', () => {
+    addFieldBtn?.addEventListener('click', async () => {
+        // Check if we already have 4 fields
+        if (apiAvailable) {
+            try {
+                const res = await fetch(API_BASE + '/fields');
+                const json = await res.json();
+                if (json.success && json.data.length >= 4) {
+                    showToast('Maximum 4 fields allowed (one per sensor zone)', 'warning');
+                    return;
+                }
+            } catch (err) {
+                console.error('Failed to check field count:', err);
+            }
+        }
         openModal('addFieldModal');
     });
 
@@ -1611,11 +1624,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch(API_BASE + '/fields', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, crop, crop_icon: cropIcon, status: 'healthy' })
+                    body: JSON.stringify({ name, crop, crop_icon: cropIcon })
                 });
                 const json = await res.json();
                 if (json.success) {
-                    showToast(`Field "${name}" added successfully!`, 'success');
+                    const zoneMsg = json.zone_name ? ` (assigned to ${json.zone_name})` : '';
+                    showToast(`Field "${name}" added successfully!${zoneMsg}`, 'success');
                     closeModal('addFieldModal');
                     addFieldForm.reset();
                     // Refresh field table

@@ -53,29 +53,26 @@ app.post('/api/migrate/zone-mapping', async (req, res) => {
       if (err.code !== 'ER_DUP_FIELDNAME') throw err;
     }
     
-    // Step 2: Map fields to zones
-    const zoneMapping = [
-      { id: 1, zone: 1 },  // Mark → Zone A (moisture_1)
-      { id: 2, zone: 2 },  // Collen → Zone B (moisture_2)
-      { id: 3, zone: 3 },  // Jaslem → Zone C (moisture_3)
-      { id: 4, zone: 4 }   // Jas → Zone D (moisture_4)
-    ];
+    // Step 2: Get all fields and auto-assign zones (1-4) based on order
+    const [fields] = await pool.query('SELECT id, name FROM fields ORDER BY id');
     
-    for (const mapping of zoneMapping) {
+    for (let i = 0; i < fields.length && i < 4; i++) {
+      const zone = i + 1; // Zone 1, 2, 3, 4
       await pool.execute(
         'UPDATE fields SET zone_sensor = ? WHERE id = ?',
-        [mapping.zone, mapping.id]
+        [zone, fields[i].id]
       );
     }
     
     res.json({ 
       success: true, 
       message: 'Zone mapping migration completed',
+      fieldsUpdated: Math.min(fields.length, 4),
       mapping: {
-        'Mark (Field 1)': 'Zone A (moisture_1 on GPIO34)',
-        'Collen (Field 2)': 'Zone B (moisture_2 on GPIO35)',
-        'Jaslem (Field 3)': 'Zone C (moisture_3 on GPIO32)',
-        'Jas (Field 4)': 'Zone D (moisture_4 on GPIO33)'
+        'Zone A (GPIO34)': 'moisture_1',
+        'Zone B (GPIO35)': 'moisture_2',
+        'Zone C (GPIO32)': 'moisture_3',
+        'Zone D (GPIO33)': 'moisture_4'
       }
     });
   } catch (err) {
