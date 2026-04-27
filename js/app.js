@@ -1191,13 +1191,13 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update hardware panel relay/pump status immediately
         updateHardwareStatus(true, 0);
 
-        // Notify backend
+        // Notify backend (INVERTED: UI ON sends 'off', UI OFF sends 'on' to match hardware)
         if (apiAvailable) {
             const activeMode = 'manual';
             fetch(API_BASE + '/pump/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: on ? 'on' : 'off', mode: activeMode, field_id: 1 })
+                body: JSON.stringify({ action: on ? 'off' : 'on', mode: activeMode, field_id: 1 })
             })
             .then(res => res.json())
             .then(data => {
