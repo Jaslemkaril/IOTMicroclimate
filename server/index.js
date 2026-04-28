@@ -25,6 +25,7 @@ app.use('/api/fields',  require('./routes/fields'));
 app.use('/api/alerts',  require('./routes/alerts'));
 app.use('/api/pump',    require('./routes/pump'));
 app.use('/api/tank',    require('./routes/tank'));
+app.use('/api/tank',    require('./routes/tank-force-reset')); // Emergency tank fix
 
 // Health check
 app.get('/api/health', async (req, res) => {
