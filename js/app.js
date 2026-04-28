@@ -1941,7 +1941,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAlerts();
             setInterval(fetchAlerts, 30000);
             fetchEsp32Status();
-            setInterval(fetchEsp32Status, 15000);
+            setInterval(fetchEsp32Status, 5000);  // Check every 5s to match ESP32 posting rate
             fetchPumpToday();
             fetchTankStatus();
             setInterval(fetchTankStatus, 15000);
@@ -1961,7 +1961,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchFieldHealth();
                 fetchAlerts();
                 fetchEsp32Status();
-                setInterval(fetchEsp32Status, 15000);
+                setInterval(fetchEsp32Status, 5000);  // Check every 5s to match ESP32 posting rate
                 fetchPumpToday();
                 fetchTankStatus();
             }

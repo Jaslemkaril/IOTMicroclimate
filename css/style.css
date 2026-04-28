@@ -980,8 +980,8 @@ button {
 }
 
 .chart-card .card-body {
-    height: 140px;
-    padding: 8px 16px 16px;
+    height: 100px;
+    padding: 8px 16px 12px;
 }
 
 .chart-controls {
@@ -2190,7 +2190,7 @@ button {
     .dashboard-grid { padding: 12px 12px 0; gap: 12px; }
 
     /* Chart height reduce */
-    .chart-card .card-body { height: 120px; }
+    .chart-card .card-body { height: 90px; }
 }
 
 /* ── 400 px  (very small phones, e.g. iPhone SE) ────────── */
@@ -2219,7 +2219,7 @@ button {
     .card-body    { padding: 16px; }
     .card-header  { padding: 14px 16px; }
 
-    .chart-card .card-body { height: 110px; }
+    .chart-card .card-body { height: 85px; }
 
     .pump-ring { width: 100px; height: 100px; }
     .pump-icon-wrap { width: 50px; height: 50px; font-size: 20px; }
@@ -4235,7 +4235,7 @@ button {
     .dashboard-grid { padding: 12px 12px 0; gap: 12px; }
 
     /* Chart height reduce */
-    .chart-card .card-body { height: 120px; }
+    .chart-card .card-body { height: 90px; }
 
     /* Topbar compact */
     .topbar { padding: 0 12px; gap: 8px; }
