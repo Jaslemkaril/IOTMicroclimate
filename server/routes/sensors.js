@@ -288,4 +288,50 @@ router.get('/esp32-status', async (req, res) => {
   }
 });
 
+// ────────────────────────────────────────────
+// GET /api/sensors/water-usage-today
+// Calculate total water used today from flow sensor readings
+// ────────────────────────────────────────────
+router.get('/water-usage-today', async (req, res) => {
+  try {
+    // Get all sensor readings from today where water_flow > 0
+    const [rows] = await pool.query(`
+      SELECT 
+        water_flow,
+        recorded_at,
+        LAG(recorded_at) OVER (ORDER BY recorded_at) as prev_recorded_at
+      FROM sensor_readings
+      WHERE DATE(recorded_at) = CURDATE()
+        AND water_flow IS NOT NULL
+        AND water_flow > 0
+      ORDER BY recorded_at
+    `);
+    
+    let totalLiters = 0;
+    
+    // Calculate water used between each reading
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      if (row.prev_recorded_at) {
+        // Time difference in minutes
+        const timeDiff = (new Date(row.recorded_at) - new Date(row.prev_recorded_at)) / (1000 * 60);
+        // Water used = flow_rate (L/min) × time (min)
+        const waterUsed = row.water_flow * timeDiff;
+        totalLiters += waterUsed;
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        total_liters: totalLiters,
+        readings_count: rows.length
+      } 
+    });
+  } catch (err) {
+    console.error('GET /api/sensors/water-usage-today error:', err.message);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

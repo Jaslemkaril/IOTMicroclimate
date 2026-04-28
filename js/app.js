@@ -900,54 +900,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchPumpToday() {
         try {
+            // Get pump events for cycles count
             const res  = await fetch(API_BASE + '/pump/today');
             const json = await res.json();
+            
+            // Get actual water usage from flow sensor readings
+            const flowRes = await fetch(API_BASE + '/sensors/water-usage-today');
+            const flowJson = await flowRes.json();
+            
+            let waterTotal = 0;
+            let cycles = 0;
+            
             if (json.success) {
+                cycles = parseInt(json.data.cycles) || 0;
+            }
+            
+            // Prefer flow sensor data if available
+            if (flowJson.success && flowJson.data.total_liters > 0) {
+                waterTotal = parseFloat(flowJson.data.total_liters) || 0;
+            } else if (json.success) {
+                // Fallback to pump events calculation
                 waterTotal = parseFloat(json.data.total_liters) || 0;
-                const cycles = parseInt(json.data.cycles) || 0;
-                const waterTotalGal = waterTotal * L_TO_GAL;
+            }
+            
+            const waterTotalGal = waterTotal * L_TO_GAL;
+            
+            if (totalWaterEl)  totalWaterEl.textContent  = waterTotal.toFixed(3) + ' L';
+            const galEl = document.getElementById('totalWaterGal');
+            if (galEl) galEl.textContent = waterTotalGal.toFixed(3) + ' gal';
+            
+            // Mirror into tank Used Today rows
+            const usedLEl   = document.getElementById('tankUsedL');
+            const usedGalEl = document.getElementById('tankUsedGal');
+            const cyclesEl  = document.getElementById('tankCycles');
+            
+            if (usedLEl)   usedLEl.textContent   = waterTotal.toFixed(3) + ' L';
+            if (usedGalEl) usedGalEl.textContent = waterTotalGal.toFixed(3) + ' gal';
+            if (cyclesEl)  cyclesEl.textContent  = cycles;
+            
+            // Calculate consumption rate (L/hour)
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const hoursElapsed = (now - startOfDay) / (1000 * 60 * 60);
+            const consumptionRate = hoursElapsed > 0 ? waterTotal / hoursElapsed : 0;
+            
+            const rateEl = document.getElementById('tankConsumptionRate');
+            if (rateEl) rateEl.textContent = consumptionRate.toFixed(2) + ' L/hr';
+            
+            // Calculate estimated time until empty
+            const tankRes = await fetch(API_BASE + '/tank');
+            const tankJson = await tankRes.json();
+            if (tankJson.success && consumptionRate > 0) {
+                const remaining = parseFloat(tankJson.data.level_liters);
+                const hoursRemaining = remaining / consumptionRate;
+                const timeEl = document.getElementById('tankTimeRemaining');
                 
-                if (totalWaterEl)  totalWaterEl.textContent  = waterTotal.toFixed(3) + ' L';
-                const galEl = document.getElementById('totalWaterGal');
-                if (galEl) galEl.textContent = waterTotalGal.toFixed(3) + ' gal';
-                
-                // Mirror into tank Used Today rows
-                const usedLEl   = document.getElementById('tankUsedL');
-                const usedGalEl = document.getElementById('tankUsedGal');
-                const cyclesEl  = document.getElementById('tankCycles');
-                
-                if (usedLEl)   usedLEl.textContent   = waterTotal.toFixed(3) + ' L';
-                if (usedGalEl) usedGalEl.textContent = waterTotalGal.toFixed(3) + ' gal';
-                if (cyclesEl)  cyclesEl.textContent  = cycles;
-                
-                // Calculate consumption rate (L/hour)
-                const now = new Date();
-                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const hoursElapsed = (now - startOfDay) / (1000 * 60 * 60);
-                const consumptionRate = hoursElapsed > 0 ? waterTotal / hoursElapsed : 0;
-                
-                const rateEl = document.getElementById('tankConsumptionRate');
-                if (rateEl) rateEl.textContent = consumptionRate.toFixed(2) + ' L/hr';
-                
-                // Calculate estimated time until empty
-                const tankRes = await fetch(API_BASE + '/tank');
-                const tankJson = await tankRes.json();
-                if (tankJson.success && consumptionRate > 0) {
-                    const remaining = parseFloat(tankJson.data.level_liters);
-                    const hoursRemaining = remaining / consumptionRate;
-                    const timeEl = document.getElementById('tankTimeRemaining');
-                    
-                    if (timeEl) {
-                        if (hoursRemaining > 24) {
-                            timeEl.textContent = (hoursRemaining / 24).toFixed(1) + ' days';
-                        } else if (hoursRemaining > 1) {
-                            timeEl.textContent = hoursRemaining.toFixed(1) + ' hours';
-                        } else {
-                            timeEl.textContent = (hoursRemaining * 60).toFixed(0) + ' minutes';
-                        }
+                if (timeEl) {
+                    if (hoursRemaining > 24) {
+                        timeEl.textContent = (hoursRemaining / 24).toFixed(1) + ' days';
+                    } else if (hoursRemaining > 1) {
+                        timeEl.textContent = hoursRemaining.toFixed(1) + ' hours';
+                    } else {
+                        timeEl.textContent = (hoursRemaining * 60).toFixed(0) + ' minutes';
                     }
-                } else {
-                    const timeEl = document.getElementById('tankTimeRemaining');
+                }
+            } else {
+                const timeEl = document.getElementById('tankTimeRemaining');
                     if (timeEl) timeEl.textContent = '—';
                 }
             }
@@ -1943,6 +1961,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchEsp32Status();
             setInterval(fetchEsp32Status, 5000);  // Check every 5s to match ESP32 posting rate
             fetchPumpToday();
+            setInterval(fetchPumpToday, 5000);  // Update water usage every 5s from flow sensor
             fetchTankStatus();
             setInterval(fetchTankStatus, 15000);
         } else {
@@ -1963,6 +1982,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchEsp32Status();
                 setInterval(fetchEsp32Status, 5000);  // Check every 5s to match ESP32 posting rate
                 fetchPumpToday();
+                setInterval(fetchPumpToday, 5000);  // Update water usage every 5s from flow sensor
                 fetchTankStatus();
             }
         }
