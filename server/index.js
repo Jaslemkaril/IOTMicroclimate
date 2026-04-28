@@ -202,7 +202,10 @@ async function start() {
     }
   }
 
-  setInterval(() => integrateTankFlow().catch(() => {}), 10_000);
+  // ⚠️ TEMPORARILY DISABLED - No flow sensor connected
+  // This worker processes flow sensor data and deducts water from tank.
+  // Re-enable when YF-S201 flow sensor is installed.
+  // setInterval(() => integrateTankFlow().catch(() => {}), 10_000);
 
   // ── Data Retention Worker ───────────────────────────
   // Every 24 h: prune sensor_readings older than 30 days.
