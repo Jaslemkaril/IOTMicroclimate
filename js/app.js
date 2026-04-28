@@ -1002,38 +1002,73 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Build CSV content
-            const headers = ['Date/Time', 'Action', 'Mode', 'Water Used (L)'];
-            const rows = json.data.events.map(event => [
-                new Date(event.created_at).toLocaleString(),
-                event.action.toUpperCase(),
-                event.mode,
-                parseFloat(event.water_used_l || 0).toFixed(3)
-            ]);
-
-            let csvContent = headers.join(',') + '\n';
-            rows.forEach(row => {
-                csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
-            });
-
-            // Add summary at the end
+            // Build professional CSV with header section
+            let csvContent = '';
+            
+            // === HEADER SECTION ===
+            csvContent += '=== TERRASYNC IRRIGATION REPORT ===\n';
+            csvContent += `Report Generated:,${new Date().toLocaleString()}\n`;
+            csvContent += `Report Date:,${dateInput}\n`;
+            csvContent += `Farm Name:,Jaslem Farm\n`;
+            csvContent += `System:,TerraSync Smart IoT Precision Farming\n`;
             csvContent += '\n';
-            csvContent += `"Total Events","${json.data.totalEvents}"\n`;
-            csvContent += `"ON Events","${json.data.onEvents}"\n`;
-            csvContent += `"OFF Events","${json.data.offEvents}"\n`;
-            csvContent += `"Total Water Used (L)","${json.data.totalWaterUsed.toFixed(3)}"\n`;
+            
+            // === SUMMARY SECTION ===
+            csvContent += '=== DAILY SUMMARY ===\n';
+            csvContent += `Total Water Used:,${json.data.totalWaterUsed.toFixed(3)} L,${(json.data.totalWaterUsed * 0.264172).toFixed(3)} gal\n`;
+            csvContent += `Pump Cycles:,${json.data.offEvents}\n`;
+            csvContent += `Total Events:,${json.data.totalEvents}\n`;
+            csvContent += `Pump ON Events:,${json.data.onEvents}\n`;
+            csvContent += `Pump OFF Events:,${json.data.offEvents}\n`;
+            
+            // Calculate average water per cycle
+            const avgPerCycle = json.data.offEvents > 0 ? json.data.totalWaterUsed / json.data.offEvents : 0;
+            csvContent += `Average Water per Cycle:,${avgPerCycle.toFixed(3)} L,${(avgPerCycle * 0.264172).toFixed(3)} gal\n`;
+            csvContent += '\n';
+            
+            // === DETAILED EVENT LOG ===
+            csvContent += '=== DETAILED EVENT LOG ===\n';
+            const headers = ['Date/Time', 'Action', 'Mode', 'Water Used (L)', 'Water Used (gal)', 'Duration'];
+            csvContent += headers.join(',') + '\n';
+            
+            const rows = json.data.events.map(event => {
+                const waterL = parseFloat(event.water_used_l || 0);
+                const waterGal = waterL * 0.264172;
+                const dateTime = new Date(event.created_at).toLocaleString();
+                
+                return [
+                    `"${dateTime}"`,
+                    `"${event.action.toUpperCase()}"`,
+                    `"${event.mode}"`,
+                    waterL.toFixed(3),
+                    waterGal.toFixed(3),
+                    event.action === 'off' && waterL > 0 ? `"${Math.round(waterL / 0.1)} sec"` : '"-"'
+                ].join(',');
+            });
+            
+            csvContent += rows.join('\n') + '\n';
+            csvContent += '\n';
+            
+            // === NOTES SECTION ===
+            csvContent += '=== NOTES ===\n';
+            csvContent += '"Water usage calculated from YF-S201 flow sensor readings"\n';
+            csvContent += '"1 Liter = 0.264172 US Gallons"\n';
+            csvContent += '"Duration estimated at ~0.1 L/sec average flow rate"\n';
+            csvContent += '"Mode: manual = user-controlled, auto = scheduled irrigation"\n';
+            csvContent += '\n';
+            csvContent += '=== END OF REPORT ===\n';
 
             // Trigger download
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `terrasync-pump-data-${dateInput}.csv`;
+            link.download = `terrasync-pump-report-${dateInput}.csv`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
 
-            showToast(`CSV exported: ${json.data.totalEvents} events`, 'success');
+            showToast(`Report exported: ${json.data.totalEvents} events, ${json.data.totalWaterUsed.toFixed(2)} L used`, 'success');
         } catch (err) {
             console.error('CSV export error:', err);
             showToast('Failed to export CSV: ' + err.message, 'danger');
