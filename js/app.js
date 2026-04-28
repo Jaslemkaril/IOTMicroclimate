@@ -819,9 +819,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const galEl = document.getElementById('tankTextGal');
         if (galEl) galEl.textContent = levelGal.toFixed(3) + ' gal';
 
-        // Remaining (L)
+        // Remaining (L) - flash on update to show it's live
         const remEl = document.getElementById('tankRemaining');
-        if (remEl) remEl.textContent = level.toFixed(3) + ' L';
+        if (remEl) {
+            const oldValue = remEl.textContent;
+            const newValue = level.toFixed(3) + ' L';
+            remEl.textContent = newValue;
+            // Flash if value changed
+            if (oldValue !== newValue && oldValue !== '7.000 L') {
+                flashValue(remEl);
+            }
+        }
 
         // Remaining (gal)
         const remGalEl = document.getElementById('tankRemainingGal');
