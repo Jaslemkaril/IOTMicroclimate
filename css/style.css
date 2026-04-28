@@ -1217,6 +1217,8 @@ button {
     font-weight: 700;
     font-family: var(--font-heading);
     color: var(--text-primary);
+    background: transparent !important;
+    padding: 0;
 }
 
 .pump-stat-label {
