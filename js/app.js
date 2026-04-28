@@ -966,8 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 const timeEl = document.getElementById('tankTimeRemaining');
-                    if (timeEl) timeEl.textContent = '—';
-                }
+                if (timeEl) timeEl.textContent = '—';
             }
         } catch { /* silent */ }
     }
