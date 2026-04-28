@@ -1243,18 +1243,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Track water usage counter when pump is on (with 1-second delay)
+        // Pump runtime counter and last irrigation tracking
         if (on) {
-            // Start water counter after 1-second delay
-            setTimeout(() => {
-                if (pumpOn) { // Only start if pump is still on
-                    pumpInterval = setInterval(() => {
-                        waterTotal += 0.1;
-                        if (totalWaterEl) totalWaterEl.textContent = waterTotal.toFixed(1) + ' L';
-                    }, 1000);
-                }
-            }, 1000);
-
             // Pump runtime counter (starts immediately)
             pumpRuntimeSeconds = 0;
             pumpRuntimeInterval = setInterval(() => {
@@ -1267,22 +1257,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (lastIrrigationEl) lastIrrigationEl.textContent = 'Now';
         } else {
-            // Stop counters after 1-second delay
-            setTimeout(() => {
-                clearInterval(pumpInterval);
-                clearInterval(pumpRuntimeInterval);
-                const runtimeEl = document.getElementById('pumpRuntime');
-                if (runtimeEl) runtimeEl.textContent = '00:00';
+            // Stop runtime counter
+            clearInterval(pumpRuntimeInterval);
+            const runtimeEl = document.getElementById('pumpRuntime');
+            if (runtimeEl) runtimeEl.textContent = '00:00';
 
-                const flowVal = document.getElementById('flowValue');
-                const flowGauge = document.getElementById('flowGauge');
-                if (flowVal) flowVal.textContent = '0.0';
-                if (flowGauge) flowGauge.style.width = '0%';
+            const flowVal = document.getElementById('flowValue');
+            const flowGauge = document.getElementById('flowGauge');
+            if (flowVal) flowVal.textContent = '0.0';
+            if (flowGauge) flowGauge.style.width = '0%';
 
-                if (lastIrrigationEl && waterTotal > 0) {
-                    lastIrrigationEl.textContent = 'Just now';
-                }
-            }, 1000);
+            // Fetch final water usage from flow sensor
+            if (apiAvailable) {
+                fetchPumpToday();
+            }
+
+            if (lastIrrigationEl) {
+                lastIrrigationEl.textContent = 'Just now';
+            }
         }
     }
 
