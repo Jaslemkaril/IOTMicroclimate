@@ -291,10 +291,22 @@ router.get('/esp32-status', async (req, res) => {
 // ────────────────────────────────────────────
 // GET /api/sensors/water-usage-today
 // Calculate total water used today from flow sensor readings
+// ⚠️ TEMPORARILY RETURNS 0 - No flow sensor connected
 // ────────────────────────────────────────────
 router.get('/water-usage-today', async (req, res) => {
   try {
-    // Get all sensor readings from today where water_flow > 0
+    // ⚠️ DISABLED: No flow sensor connected, return 0
+    // When YF-S201 flow sensor is installed, uncomment the code below
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        total_liters: 0,
+        readings_count: 0
+      } 
+    });
+    
+    /* ORIGINAL CODE - Re-enable when flow sensor is connected:
     const [rows] = await pool.query(`
       SELECT 
         water_flow,
@@ -309,13 +321,10 @@ router.get('/water-usage-today', async (req, res) => {
     
     let totalLiters = 0;
     
-    // Calculate water used between each reading
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       if (row.prev_recorded_at) {
-        // Time difference in minutes
         const timeDiff = (new Date(row.recorded_at) - new Date(row.prev_recorded_at)) / (1000 * 60);
-        // Water used = flow_rate (L/min) × time (min)
         const waterUsed = row.water_flow * timeDiff;
         totalLiters += waterUsed;
       }
@@ -328,6 +337,7 @@ router.get('/water-usage-today', async (req, res) => {
         readings_count: rows.length
       } 
     });
+    */
   } catch (err) {
     console.error('GET /api/sensors/water-usage-today error:', err.message);
     res.status(500).json({ success: false, error: 'Internal server error' });
