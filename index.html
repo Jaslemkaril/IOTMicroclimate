@@ -383,27 +383,12 @@
                         <p class="pump-status" id="pumpStatus">Pump is OFF</p>
                     </div>
 
-                    <div class="pump-stats">
-                        <div class="pump-stat">
-                            <span class="pump-stat-value" id="totalWater">0.000 L</span>
-                            <span class="pump-stat-label">Used Today (L)</span>
-                        </div>
-                        <div class="pump-stat">
-                            <span class="pump-stat-value" id="totalWaterGal">0.000 gal</span>
-                            <span class="pump-stat-label">Used Today (gal)</span>
-                        </div>
-                        <div class="pump-stat">
-                            <span class="pump-stat-value" id="lastIrrigation">—</span>
-                            <span class="pump-stat-label">Last Irrigation</span>
-                        </div>
-                        <div class="pump-stat">
-                            <span class="pump-stat-value" id="relayStatus">Relay OFF</span>
-                            <span class="pump-stat-label">Relay Module</span>
-                        </div>
-                        <div class="pump-stat">
-                            <span class="pump-stat-value" id="pumpRuntime">00:00</span>
-                            <span class="pump-stat-label">Runtime</span>
-                        </div>
+                    <div class="pump-controls">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="pumpSwitch">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-label">Manual Override</span>
+                        </label>
                     </div>
 
                     <!-- Export & Analysis Tools -->
